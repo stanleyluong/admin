@@ -1,0 +1,59 @@
+.App {
+  min-height: 100vh;
+  background-color: var(--color-darkBlue);
+  color: var(--color-lightSlate);
+}
+
+.nav-active {
+  color: var(--color-green);
+  border-bottom: 2px solid var(--color-green);
+}
+
+.form-input {
+  @apply w-full p-2 bg-darkBlue border border-lightBlue rounded;
+}
+
+.form-label {
+  @apply block text-lightSlate mb-1;
+}
+
+.btn {
+  @apply py-2 px-4 rounded transition-all;
+}
+
+.btn-primary {
+  @apply bg-green text-darkBlue hover:bg-opacity-90;
+}
+
+.btn-secondary {
+  @apply border border-lightSlate text-lightSlate hover:bg-lightBlue hover:bg-opacity-30;
+}
+
+.btn-danger {
+  @apply bg-red-500 bg-opacity-20 text-red-400 hover:bg-opacity-30;
+}
+
+.btn-sm {
+  @apply py-1 px-3 text-sm;
+}
+
+.card {
+  @apply bg-lightBlue bg-opacity-20 p-4 rounded-lg;
+}
+
+.card-header {
+  @apply text-lg font-medium text-lightestSlate mb-4;
+}
+
+.container {
+  @apply max-w-7xl mx-auto p-4;
+}
+
+/* Progress bar styling */
+.progress-container {
+  @apply w-full h-2 bg-darkBlue rounded-full overflow-hidden;
+}
+
+.progress-bar {
+  @apply h-full bg-green;
+}

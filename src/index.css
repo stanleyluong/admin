@@ -1,0 +1,43 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: #0a192f;
+  color: #8892b0;
+}
+
+code {
+  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
+    monospace;
+}
+
+/* Add this if you want to use the green accent color from your main site */
+:root {
+  --color-green: #64ffda;
+  --color-lightSlate: #8892b0;
+  --color-lightestSlate: #ccd6f6;
+  --color-darkBlue: #0a192f;
+  --color-lightBlue: #112240;
+  --color-navyBlue: #0a192f;
+}
+
+.btn-primary {
+  @apply py-2 px-4 bg-green text-darkBlue rounded hover:bg-opacity-90 font-bold transition-all;
+}
+
+/* Dark mode styles */
+@layer base {
+  :root {
+    --color-bg: 10 25 47;
+    --color-text: 136 146 176;
+    --color-highlight: 100 255 218;
+    --color-heading: 204 214 246;
+  }
+}
