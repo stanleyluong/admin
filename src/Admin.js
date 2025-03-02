@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { getAuth, signInWithEmailAndPassword, signOut } from 'firebase/auth';
 import { db, storage } from './firebase/config';
 import { 
@@ -15,6 +16,10 @@ import {
 } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { setFirebaseConfig } from './firebase/config';
+import Projects from './components/admin/Projects';
+import MessageDisplay from './components/admin/MessageDisplay';
+import Dashboard from './components/admin/Dashboard';
+import AdminLayout from './components/admin/AdminLayout';
 
 const Admin = () => {
   const [email, setEmail] = useState('');
@@ -24,8 +29,9 @@ const Admin = () => {
   const [message, setMessage] = useState('');
   const [messageType, setMessageType] = useState(''); // 'success', 'error', or 'info'
   
-  // Admin view state
-  const [activeView, setActiveView] = useState('dashboard'); // dashboard, projects, certificates, skills, work, education, profile
+  // Router hooks
+  const navigate = useNavigate();
+  const location = useLocation();
   
   // Projects state
   const [projects, setProjects] = useState([]);
@@ -120,7 +126,7 @@ const Admin = () => {
       let successCount = 0;
       const totalDataTypes = 5; // Number of data types to load
       
-      // Load projects
+      // Load projects (for dashboard display only)
       try {
         await fetchProjects();
         console.log("Projects loaded successfully");
@@ -128,7 +134,6 @@ const Admin = () => {
       } catch (err) {
         console.error("Projects fetch failed:", err);
         showMessage("Error loading projects: " + err.message, "error");
-        // Track error but variable not needed elsewhere
       }
       
       // Load certificates
@@ -139,7 +144,6 @@ const Admin = () => {
       } catch (err) {
         console.error("Certificates fetch failed:", err);
         showMessage("Error loading certificates: " + err.message, "error");
-        // Track error but variable not needed elsewhere
       }
       
       // Load profile
@@ -150,7 +154,6 @@ const Admin = () => {
       } catch (err) {
         console.error("Profile fetch failed:", err);
         showMessage("Error loading profile: " + err.message, "error");
-        // Track error but variable not needed elsewhere
       }
       
       // Load skills
@@ -161,7 +164,6 @@ const Admin = () => {
       } catch (err) {
         console.error("Skills fetch failed:", err);
         showMessage("Error loading skills: " + err.message, "error");
-        // Track error but variable not needed elsewhere
       }
       
       // Load work experience
@@ -172,7 +174,6 @@ const Admin = () => {
       } catch (err) {
         console.error("Work experience fetch failed:", err);
         showMessage("Error loading work experience: " + err.message, "error");
-        // Track error but variable not needed elsewhere
       }
       
       // Load education if function exists
@@ -184,7 +185,6 @@ const Admin = () => {
         } catch (err) {
           console.error("Education fetch failed:", err);
           showMessage("Error loading education: " + err.message, "error");
-          // Not counting this in the fail count because it's optional
         }
       } else {
         console.warn("fetchEducation function not defined yet");
@@ -228,67 +228,21 @@ const Admin = () => {
     };
   }, [auth, loadAllData]);
   
-  // Fetch projects from Firestore
+  // Simple fetch projects from Firestore (for dashboard counts only)
   const fetchProjects = async () => {
-    setProjectsLoading(true);
     try {
-      console.log('Fetching projects from Firestore...');
-      console.log('Firebase config:', db._app.options);
-      console.log('Current user:', auth.currentUser?.email || 'No user');
-      
-      // Verify database connection
-      try {
-        const testDoc = await addDoc(collection(db, "connection_test"), {
-          timestamp: new Date(),
-          message: "Testing connection"
-        });
-        console.log("Database connection test successful:", testDoc.id);
-        // Delete test doc to keep database clean
-        await deleteDoc(doc(db, "connection_test", testDoc.id));
-      } catch (connError) {
-        console.error("Database connection test failed:", connError);
-        throw new Error(`Database connection failed: ${connError.message}`);
-      }
-      
       const projectsCollection = collection(db, 'projects');
-      console.log('Projects collection reference:', projectsCollection);
-      
-      // First try to get all projects without ordering
-      const simpleSnapshot = await getDocs(projectsCollection);
-      console.log('Got projects snapshot, empty?', simpleSnapshot.empty, 'size:', simpleSnapshot.size);
-      
-      let projectsList = [];
-      
-      // Now try with ordering if we have data
-      if (!simpleSnapshot.empty) {
-        try {
-          const projectsQuery = query(projectsCollection, orderBy('createdAt', 'desc'));
-          const snapshot = await getDocs(projectsQuery);
-          projectsList = snapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data()
-          }));
-          console.log('Projects with ordering:', projectsList.length);
-        } catch (orderError) {
-          console.warn('Error ordering projects by createdAt - using unordered data instead:', orderError);
-          projectsList = simpleSnapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data()
-          }));
-        }
-      } else {
-        console.warn('No projects found in the collection. Collection might be empty or permissions issue.');
-      }
-      
-      console.log('Setting projects state:', projectsList);
+      const snapshot = await getDocs(projectsCollection);
+      const projectsList = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
       setProjects(projectsList);
-      return projectsList; // Return the data for chaining
+      return projectsList;
     } catch (error) {
       console.error('Error fetching projects:', error);
       showMessage('Error loading projects: ' + error.message, 'error');
-      throw error; // Re-throw to be caught by the caller
-    } finally {
-      setProjectsLoading(false);
+      return [];
     }
   };
   
@@ -577,116 +531,7 @@ const Admin = () => {
     }
   };
   
-  // For backward compatibility - project specific handler
-  const handleProjectImageUpload = (event, isThumb = false) => {
-    handleImageUpload(event, 'project', isThumb);
-  };
-  
-  // Save a new project to Firestore
-  const saveNewProject = async () => {
-    setLoading(true);
-    
-    try {
-      // Validate required fields
-      if (!newProject.title || !newProject.category) {
-        showMessage('Title and category are required', 'error');
-        setLoading(false);
-        return;
-      }
-      
-      // Add timestamps
-      const projectData = {
-        ...newProject,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      };
-      
-      // Save to Firestore
-      const docRef = await addDoc(collection(db, 'projects'), projectData);
-      
-      // Update with ID
-      await updateDoc(docRef, { id: docRef.id });
-      
-      // Reset form and reload projects
-      setNewProject({
-        title: '',
-        category: '',
-        url: '',
-        images: []
-      });
-      
-      await fetchProjects();
-      showMessage('Project created successfully!', 'success');
-    } catch (error) {
-      console.error('Error creating project:', error);
-      showMessage('Error creating project: ' + error.message, 'error');
-    } finally {
-      setLoading(false);
-    }
-  };
-  
-  // Update an existing project
-  const updateProject = async () => {
-    if (!editingProject || !editingProject.id) {
-      showMessage('No project selected for update', 'error');
-      return;
-    }
-    
-    setLoading(true);
-    
-    try {
-      // Validate required fields
-      if (!editingProject.title || !editingProject.category) {
-        showMessage('Title and category are required', 'error');
-        setLoading(false);
-        return;
-      }
-      
-      // Update timestamp
-      const projectData = {
-        ...editingProject,
-        updatedAt: new Date()
-      };
-      
-      // Update in Firestore
-      await updateDoc(doc(db, 'projects', editingProject.id), projectData);
-      
-      // Reset editing state and reload projects
-      setEditingProject(null);
-      await fetchProjects();
-      showMessage('Project updated successfully!', 'success');
-    } catch (error) {
-      console.error('Error updating project:', error);
-      showMessage('Error updating project: ' + error.message, 'error');
-    } finally {
-      setLoading(false);
-    }
-  };
-  
-  // Delete a project
-  const deleteProject = async (projectId) => {
-    if (!projectId) return;
-    
-    // Confirm with user
-    const confirmed = window.confirm('Are you sure you want to delete this project? This cannot be undone.');
-    if (!confirmed) return;
-    
-    setLoading(true);
-    
-    try {
-      // Delete from Firestore
-      await deleteDoc(doc(db, 'projects', projectId));
-      
-      // Reload projects
-      await fetchProjects();
-      showMessage('Project deleted successfully', 'success');
-    } catch (error) {
-      console.error('Error deleting project:', error);
-      showMessage('Error deleting project: ' + error.message, 'error');
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Note: Project handling functions have been moved to Projects.js component
   
   const handleUpdateFirebaseConfig = () => {
     try {
@@ -709,137 +554,81 @@ const Admin = () => {
     }
   };
 
-  // If not logged in, show login form
-  if (!user) {
+  // Sidebar menu with nav options using routes
+  const renderSidebar = () => {
+    const currentPath = location.pathname;
+    
+    // Function to check if current path matches a route 
+    // (including the base /admin path for proper highlighting)
+    const isActive = (path) => {
+      if (path === '/') {
+        return currentPath === '/admin' || currentPath === '/admin/';
+      }
+      return currentPath === `/admin${path}`;
+    };
+    
     return (
-      <section className="min-h-screen bg-darkBlue flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-md w-full space-y-8 bg-lightBlue bg-opacity-20 p-8 rounded-lg">
-          <div>
-            <h2 className="mt-6 text-center text-3xl font-bold text-lightestSlate">Admin Login</h2>
-            <p className="mt-2 text-center text-sm text-lightSlate">
-              Enter your credentials to access admin features
-            </p>
-          </div>
-          
-          {message && (
-            <div className={`p-4 rounded ${
-              messageType === 'success' ? 'bg-green-100 text-green-700' : 
-              messageType === 'info' ? 'bg-blue-100 text-blue-700' :
-              'bg-red-100 text-red-700'
-            }`}>
-              {message}
-            </div>
-          )}
-          
-          <form className="mt-8 space-y-6" onSubmit={handleLogin}>
-            <div className="rounded-md shadow-sm -space-y-px">
-              <div>
-                <label htmlFor="email-address" className="sr-only">Email address</label>
-                <input
-                  id="email-address"
-                  name="email"
-                  type="email"
-                  autoComplete="email"
-                  required
-                  className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-green-500 focus:border-green-500 focus:z-10 sm:text-sm"
-                  placeholder="Email address"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                />
-              </div>
-              <div>
-                <label htmlFor="password" className="sr-only">Password</label>
-                <input
-                  id="password"
-                  name="password"
-                  type="password"
-                  autoComplete="current-password"
-                  required
-                  className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-green-500 focus:border-green-500 focus:z-10 sm:text-sm"
-                  placeholder="Password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                />
-              </div>
-            </div>
-
-            <div>
-              <button
-                type="submit"
-                disabled={loading}
-                className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-darkBlue bg-green hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
-              >
-                {loading ? 'Loading...' : 'Sign in'}
-              </button>
-            </div>
-          </form>
-        </div>
-      </section>
+      <div className="w-64 bg-lightBlue bg-opacity-30 p-4 rounded-lg">
+        <h3 className="text-xl font-semibold text-lightestSlate mb-4">Navigation</h3>
+        <nav className="space-y-2">
+          <button
+            onClick={() => navigate('/admin')}
+            className={`w-full text-left py-2 px-3 rounded ${isActive('/') ? 'bg-green text-darkBlue' : 'hover:bg-lightBlue hover:bg-opacity-50'}`}
+          >
+            Dashboard
+          </button>
+          <button
+            onClick={() => navigate('/admin/profile')}
+            className={`w-full text-left py-2 px-3 rounded ${isActive('/profile') ? 'bg-green text-darkBlue' : 'hover:bg-lightBlue hover:bg-opacity-50'}`}
+          >
+            Profile
+          </button>
+          <button
+            onClick={() => navigate('/admin/projects')}
+            className={`w-full text-left py-2 px-3 rounded ${isActive('/projects') ? 'bg-green text-darkBlue' : 'hover:bg-lightBlue hover:bg-opacity-50'}`}
+          >
+            Projects
+          </button>
+          <button
+            onClick={() => navigate('/admin/certificates')}
+            className={`w-full text-left py-2 px-3 rounded ${isActive('/certificates') ? 'bg-green text-darkBlue' : 'hover:bg-lightBlue hover:bg-opacity-50'}`}
+          >
+            Certificates
+          </button>
+          <button
+            onClick={() => navigate('/admin/skills')}
+            className={`w-full text-left py-2 px-3 rounded ${isActive('/skills') ? 'bg-green text-darkBlue' : 'hover:bg-lightBlue hover:bg-opacity-50'}`}
+          >
+            Skills
+          </button>
+          <button
+            onClick={() => navigate('/admin/work')}
+            className={`w-full text-left py-2 px-3 rounded ${isActive('/work') ? 'bg-green text-darkBlue' : 'hover:bg-lightBlue hover:bg-opacity-50'}`}
+          >
+            Work Experience
+          </button>
+          <button
+            onClick={() => navigate('/admin/education')}
+            className={`w-full text-left py-2 px-3 rounded ${isActive('/education') ? 'bg-green text-darkBlue' : 'hover:bg-lightBlue hover:bg-opacity-50'}`}
+          >
+            Education
+          </button>
+          <button
+            onClick={() => navigate('/admin/settings')}
+            className={`w-full text-left py-2 px-3 rounded ${isActive('/settings') ? 'bg-green text-darkBlue' : 'hover:bg-lightBlue hover:bg-opacity-50'}`}
+          >
+            Settings
+          </button>
+          <button
+            onClick={handleLogout}
+            className="w-full text-left py-2 px-3 rounded text-red-400 hover:bg-red-900 hover:bg-opacity-50 mt-8"
+          >
+            Logout
+          </button>
+        </nav>
+      </div>
     );
-  }
-
-  // Sidebar menu with nav options
-  const renderSidebar = () => (
-    <div className="w-64 bg-lightBlue bg-opacity-30 p-4 rounded-lg">
-      <h3 className="text-xl font-semibold text-lightestSlate mb-4">Navigation</h3>
-      <nav className="space-y-2">
-        <button
-          onClick={() => setActiveView('dashboard')}
-          className={`w-full text-left py-2 px-3 rounded ${activeView === 'dashboard' ? 'bg-green text-darkBlue' : 'hover:bg-lightBlue hover:bg-opacity-50'}`}
-        >
-          Dashboard
-        </button>
-        <button
-          onClick={() => setActiveView('profile')}
-          className={`w-full text-left py-2 px-3 rounded ${activeView === 'profile' ? 'bg-green text-darkBlue' : 'hover:bg-lightBlue hover:bg-opacity-50'}`}
-        >
-          Profile
-        </button>
-        <button
-          onClick={() => setActiveView('projects')}
-          className={`w-full text-left py-2 px-3 rounded ${activeView === 'projects' ? 'bg-green text-darkBlue' : 'hover:bg-lightBlue hover:bg-opacity-50'}`}
-        >
-          Projects
-        </button>
-        <button
-          onClick={() => setActiveView('certificates')}
-          className={`w-full text-left py-2 px-3 rounded ${activeView === 'certificates' ? 'bg-green text-darkBlue' : 'hover:bg-lightBlue hover:bg-opacity-50'}`}
-        >
-          Certificates
-        </button>
-        <button
-          onClick={() => setActiveView('skills')}
-          className={`w-full text-left py-2 px-3 rounded ${activeView === 'skills' ? 'bg-green text-darkBlue' : 'hover:bg-lightBlue hover:bg-opacity-50'}`}
-        >
-          Skills
-        </button>
-        <button
-          onClick={() => setActiveView('work')}
-          className={`w-full text-left py-2 px-3 rounded ${activeView === 'work' ? 'bg-green text-darkBlue' : 'hover:bg-lightBlue hover:bg-opacity-50'}`}
-        >
-          Work Experience
-        </button>
-        <button
-          onClick={() => setActiveView('education')}
-          className={`w-full text-left py-2 px-3 rounded ${activeView === 'education' ? 'bg-green text-darkBlue' : 'hover:bg-lightBlue hover:bg-opacity-50'}`}
-        >
-          Education
-        </button>
-        <button
-          onClick={() => setActiveView('settings')}
-          className={`w-full text-left py-2 px-3 rounded ${activeView === 'settings' ? 'bg-green text-darkBlue' : 'hover:bg-lightBlue hover:bg-opacity-50'}`}
-        >
-          Settings
-        </button>
-        <button
-          onClick={handleLogout}
-          className="w-full text-left py-2 px-3 rounded text-red-400 hover:bg-red-900 hover:bg-opacity-50 mt-8"
-        >
-          Logout
-        </button>
-      </nav>
-    </div>
-  );
+  };
   
   // Function to test database connection and verify configuration
   const testDatabaseWrite = async () => {
@@ -1186,503 +975,9 @@ const Admin = () => {
     }
   };
 
-  // Dashboard view
-  const renderDashboard = () => (
-    <div className="bg-lightBlue bg-opacity-30 p-6 rounded-lg">
-      <h3 className="text-2xl font-semibold text-lightestSlate mb-6">Dashboard</h3>
-      
-      {/* Admin controls */}
-      <div className="mb-6 bg-green-900 bg-opacity-30 p-4 rounded-lg border border-green">
-        <h4 className="text-lg font-medium text-green mb-2">Admin Controls</h4>
-        <div className="flex flex-wrap gap-3 mb-3">
-          <button
-            onClick={loadAllData}
-            className="py-3 px-6 bg-green-600 text-white rounded-lg hover:bg-green-700 font-bold shadow-md"
-          >
-            🔄 Reload All Data
-          </button>
-        </div>
-      </div>
-      
-      {/* Database connection test */}
-      <div className="mb-6 bg-lightBlue bg-opacity-50 p-4 rounded-lg">
-        <h4 className="text-lg font-medium text-green mb-2">Database Tools</h4>
-        <p className="text-lightSlate mb-3">
-          If you're seeing 0 entries across all categories, there might be a database connection issue.
-        </p>
-
-        <div className="bg-yellow-800 bg-opacity-20 p-3 rounded-md mb-4 border border-yellow-500">
-          <h5 className="text-yellow-400 font-medium mb-2">Troubleshooting Steps</h5>
-          <ol className="list-decimal list-inside text-lightSlate space-y-1">
-            <li>Click the "Test Database Connection" button below to verify Firebase connectivity</li>
-            <li>Check the browser console (F12) for any error messages</li>
-            <li>If connection is successful but no data appears, use "Migrate ALL Data from JSON"</li>
-            <li>If you navigate back and forth and data disappears, click "Reload All Data" at the top</li>
-            <li>If problems persist, try clearing your browser's cache and cookies</li>
-          </ol>
-        </div>
-
-        <div className="flex flex-wrap gap-3 mb-3">
-          <button
-            onClick={testDatabaseWrite}
-            className="py-3 px-6 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-bold shadow-md"
-          >
-            🔄 Test Database Connection
-          </button>
-          
-          <button
-            onClick={migrateAllDataFromJson}
-            className="py-3 px-6 bg-green-600 text-white rounded-lg hover:bg-green-700 font-bold shadow-md"
-          >
-            📤 Migrate ALL Data from JSON
-          </button>
-        </div>
-        
-        <p className="text-lightSlate mb-2">Individual data migrations:</p>
-        <div className="flex flex-wrap gap-3">
-          <button
-            onClick={migrateProfileFromJson}
-            className="py-2 px-4 bg-purple-500 text-white rounded hover:bg-purple-600"
-          >
-            Migrate Profile
-          </button>
-          
-          <button
-            onClick={migrateSkillsFromJson}
-            className="py-2 px-4 bg-purple-500 text-white rounded hover:bg-purple-600"
-          >
-            Migrate Skills
-          </button>
-          
-          <button
-            onClick={migrateWorkFromJson}
-            className="py-2 px-4 bg-purple-500 text-white rounded hover:bg-purple-600"
-          >
-            Migrate Work Experience
-          </button>
-          
-          <button
-            onClick={migrateEducationFromJson}
-            className="py-2 px-4 bg-purple-500 text-white rounded hover:bg-purple-600"
-          >
-            Migrate Education
-          </button>
-          
-          <button
-            onClick={migrateCertificatesFromJson}
-            className="py-2 px-4 bg-purple-500 text-white rounded hover:bg-purple-600"
-          >
-            Migrate Certificates
-          </button>
-        </div>
-      </div>
-      
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <div className="bg-lightBlue bg-opacity-50 p-4 rounded-lg">
-          <h4 className="text-lg font-medium text-green mb-2">Projects</h4>
-          <p className="text-lightSlate">{projects.length} projects in database</p>
-          <button
-            onClick={() => setActiveView('projects')}
-            className="mt-4 py-1 px-3 text-sm bg-green bg-opacity-20 text-green rounded hover:bg-opacity-30"
-          >
-            Manage Projects
-          </button>
-        </div>
-        
-        <div className="bg-lightBlue bg-opacity-50 p-4 rounded-lg">
-          <h4 className="text-lg font-medium text-green mb-2">Certificates</h4>
-          <p className="text-lightSlate">{certificates.length} certificates in database</p>
-          <button
-            onClick={() => setActiveView('certificates')}
-            className="mt-4 py-1 px-3 text-sm bg-green bg-opacity-20 text-green rounded hover:bg-opacity-30"
-          >
-            Manage Certificates
-          </button>
-        </div>
-        
-        <div className="bg-lightBlue bg-opacity-50 p-4 rounded-lg">
-          <h4 className="text-lg font-medium text-green mb-2">Skills</h4>
-          <p className="text-lightSlate">{skills.length} skills in database</p>
-          <button
-            onClick={() => setActiveView('skills')}
-            className="mt-4 py-1 px-3 text-sm bg-green bg-opacity-20 text-green rounded hover:bg-opacity-30"
-          >
-            Manage Skills
-          </button>
-        </div>
-        
-        <div className="bg-lightBlue bg-opacity-50 p-4 rounded-lg">
-          <h4 className="text-lg font-medium text-green mb-2">Work Experience</h4>
-          <p className="text-lightSlate">{workExperience.length} work entries in database</p>
-          <button
-            onClick={() => setActiveView('work')}
-            className="mt-4 py-1 px-3 text-sm bg-green bg-opacity-20 text-green rounded hover:bg-opacity-30"
-          >
-            Manage Work Experience
-          </button>
-        </div>
-        
-        <div className="bg-lightBlue bg-opacity-50 p-4 rounded-lg">
-          <h4 className="text-lg font-medium text-green mb-2">Education</h4>
-          <p className="text-lightSlate">{education.length} education entries in database</p>
-          <button
-            onClick={() => setActiveView('education')}
-            className="mt-4 py-1 px-3 text-sm bg-green bg-opacity-20 text-green rounded hover:bg-opacity-30"
-          >
-            Manage Education
-          </button>
-        </div>
-      </div>
-    </div>
-  );
+  // Dashboard view is now in the Dashboard.js component
   
-  // Projects view
-  const renderProjects = () => (
-    <div className="bg-lightBlue bg-opacity-30 p-6 rounded-lg">
-      <h3 className="text-2xl font-semibold text-lightestSlate mb-6">Manage Projects</h3>
-      
-      {/* Create New Project Form */}
-      <div className="mb-8 bg-lightBlue bg-opacity-50 p-4 rounded-lg">
-        <h4 className="text-lg font-medium text-green mb-4">Create New Project</h4>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-          <div>
-            <label className="block text-lightSlate mb-1">Title</label>
-            <input
-              type="text"
-              value={newProject.title}
-              onChange={(e) => setNewProject({...newProject, title: e.target.value})}
-              className="w-full p-2 bg-darkBlue border border-lightBlue rounded"
-            />
-          </div>
-          
-          <div>
-            <label className="block text-lightSlate mb-1">Category</label>
-            <input
-              type="text"
-              value={newProject.category}
-              onChange={(e) => setNewProject({...newProject, category: e.target.value})}
-              className="w-full p-2 bg-darkBlue border border-lightBlue rounded"
-            />
-          </div>
-          
-          <div>
-            <label className="block text-lightSlate mb-1">URL (Website or leave empty)</label>
-            <input
-              type="text"
-              value={newProject.url}
-              onChange={(e) => setNewProject({...newProject, url: e.target.value})}
-              className="w-full p-2 bg-darkBlue border border-lightBlue rounded"
-            />
-          </div>
-          
-          <div>
-            <label className="block text-lightSlate mb-1">Display Order (Optional)</label>
-            <input
-              type="number"
-              value={newProject.displayOrder || ''}
-              onChange={(e) => {
-                const value = e.target.value ? parseInt(e.target.value) : '';
-                setNewProject({...newProject, displayOrder: value});
-              }}
-              placeholder="Leave empty for auto-assign"
-              className="w-full p-2 bg-darkBlue border border-lightBlue rounded"
-            />
-            <p className="text-xs text-lightSlate mt-1">Projects will be displayed in this order (lowest first)</p>
-          </div>
-        </div>
-        
-        {/* Thumbnail Upload */}
-        <div className="mb-4">
-          <label className="block text-lightSlate mb-1">Thumbnail Image</label>
-          <div className="flex items-center">
-            <input
-              type="file"
-              accept="image/*"
-              onChange={(e) => handleProjectImageUpload(e, true)}
-              className="hidden"
-              id="thumbnail-upload-new"
-              disabled={uploadingImages}
-            />
-            <label
-              htmlFor="thumbnail-upload-new"
-              className="cursor-pointer py-2 px-4 bg-green bg-opacity-20 text-green rounded hover:bg-opacity-30"
-            >
-              Upload Thumbnail
-            </label>
-            
-            {newProject.thumbnail && (
-              <div className="ml-4 flex items-center">
-                <img 
-                  src={newProject.thumbnail} 
-                  alt="Thumbnail" 
-                  className="h-10 w-10 object-cover rounded"
-                />
-                <span className="ml-2 text-lightSlate text-sm">Thumbnail uploaded</span>
-              </div>
-            )}
-          </div>
-        </div>
-        
-        {/* Gallery Images Upload */}
-        <div className="mb-4">
-          <label className="block text-lightSlate mb-1">Gallery Images</label>
-          <div className="flex items-center">
-            <input
-              type="file"
-              accept="image/*"
-              multiple
-              onChange={(e) => handleProjectImageUpload(e, false)}
-              className="hidden"
-              id="gallery-upload-new"
-              disabled={uploadingImages}
-            />
-            <label
-              htmlFor="gallery-upload-new"
-              className="cursor-pointer py-2 px-4 bg-green bg-opacity-20 text-green rounded hover:bg-opacity-30"
-            >
-              Upload Gallery Images
-            </label>
-            
-            {uploadingImages && (
-              <div className="ml-4 flex items-center">
-                <div className="w-40 h-2 bg-darkBlue rounded-full overflow-hidden">
-                  <div 
-                    className="h-full bg-green"
-                    style={{ width: `${uploadProgress}%` }}
-                  ></div>
-                </div>
-                <span className="ml-2 text-lightSlate text-sm">{uploadProgress}%</span>
-              </div>
-            )}
-          </div>
-          
-          {/* Gallery Preview */}
-          {newProject.images && newProject.images.length > 0 && (
-            <div className="mt-4">
-              <h5 className="text-lightSlate text-sm mb-2">Gallery Images ({newProject.images.length})</h5>
-              <div className="flex flex-wrap gap-2">
-                {newProject.images.map((img, index) => (
-                  <div key={index} className="relative">
-                    <img 
-                      src={img} 
-                      alt={`Gallery ${index}`} 
-                      className="h-16 w-16 object-cover rounded"
-                    />
-                    <button
-                      onClick={() => {
-                        const newImages = [...newProject.images];
-                        newImages.splice(index, 1);
-                        setNewProject({...newProject, images: newImages});
-                      }}
-                      className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs"
-                    >
-                      ×
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-        
-        <div className="flex justify-end gap-3 mt-6">
-          <button
-            onClick={saveNewProject}
-            disabled={loading}
-            className="py-2 px-4 bg-green text-darkBlue rounded hover:bg-opacity-90"
-          >
-            {loading ? 'Saving...' : 'Create Project'}
-          </button>
-        </div>
-      </div>
-      
-      {/* Projects List */}
-      <div>
-        <h4 className="text-lg font-medium text-green mb-4">Projects List</h4>
-        
-        {projectsLoading ? (
-          <div className="text-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-green mx-auto"></div>
-            <p className="mt-2 text-lightSlate">Loading projects...</p>
-          </div>
-        ) : projects.length === 0 ? (
-          <p className="text-center py-8 text-lightSlate">No projects found. Create your first project above.</p>
-        ) : (
-          <div className="space-y-4">
-            {projects.map(project => (
-              <div key={project.id} className="bg-lightBlue bg-opacity-20 p-4 rounded-lg flex flex-wrap md:flex-nowrap gap-4">
-                {/* Thumbnail */}
-                <div className="w-24 h-24 bg-darkBlue rounded overflow-hidden flex-shrink-0">
-                  {project.thumbnail ? (
-                    <img src={project.thumbnail} alt={project.title} className="w-full h-full object-cover" />
-                  ) : project.image ? (
-                    <img src={project.image} alt={project.title} className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center text-lightSlate text-xs">No image</div>
-                  )}
-                </div>
-                
-                {/* Project Info or Edit Form */}
-                {editingProject && editingProject.id === project.id ? (
-                  <div className="flex-grow bg-darkBlue bg-opacity-50 p-3 rounded">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-lightSlate text-xs mb-1">Title</label>
-                        <input
-                          type="text"
-                          value={editingProject.title}
-                          onChange={(e) => setEditingProject({...editingProject, title: e.target.value})}
-                          className="w-full p-1 text-sm bg-darkBlue border border-lightBlue rounded"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-lightSlate text-xs mb-1">Category</label>
-                        <input
-                          type="text"
-                          value={editingProject.category}
-                          onChange={(e) => setEditingProject({...editingProject, category: e.target.value})}
-                          className="w-full p-1 text-sm bg-darkBlue border border-lightBlue rounded"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-lightSlate text-xs mb-1">URL</label>
-                        <input
-                          type="text"
-                          value={editingProject.url || ''}
-                          onChange={(e) => setEditingProject({...editingProject, url: e.target.value})}
-                          className="w-full p-1 text-sm bg-darkBlue border border-lightBlue rounded"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-lightSlate text-xs mb-1">Thumbnail</label>
-                        <div className="flex items-center">
-                          <input
-                            type="file"
-                            accept="image/*"
-                            onChange={(e) => handleProjectImageUpload(e, true)}
-                            className="hidden"
-                            id={`thumbnail-upload-${project.id}`}
-                            disabled={uploadingImages}
-                          />
-                          <label
-                            htmlFor={`thumbnail-upload-${project.id}`}
-                            className="cursor-pointer py-1 px-2 text-xs bg-green bg-opacity-20 text-green rounded hover:bg-opacity-30"
-                          >
-                            Upload
-                          </label>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <div className="mt-3">
-                      <label className="block text-lightSlate text-xs mb-1">Gallery Images</label>
-                      <div className="flex items-center">
-                        <input
-                          type="file"
-                          accept="image/*"
-                          multiple
-                          onChange={(e) => handleProjectImageUpload(e, false)}
-                          className="hidden"
-                          id={`gallery-upload-${project.id}`}
-                          disabled={uploadingImages}
-                        />
-                        <label
-                          htmlFor={`gallery-upload-${project.id}`}
-                          className="cursor-pointer py-1 px-2 text-xs bg-green bg-opacity-20 text-green rounded hover:bg-opacity-30"
-                        >
-                          Upload Gallery
-                        </label>
-                      </div>
-                      
-                      {editingProject.images && editingProject.images.length > 0 && (
-                        <div className="flex flex-wrap gap-1 mt-2 max-h-16 overflow-y-auto">
-                          {editingProject.images.map((img, idx) => (
-                            <div key={idx} className="relative w-8 h-8">
-                              <img 
-                                src={img} 
-                                alt={`Gallery ${idx}`} 
-                                className="w-full h-full object-cover rounded"
-                              />
-                              <button
-                                onClick={() => {
-                                  const newImages = [...editingProject.images];
-                                  newImages.splice(idx, 1);
-                                  setEditingProject({...editingProject, images: newImages});
-                                }}
-                                className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-3 h-3 flex items-center justify-center text-xs"
-                              >
-                                ×
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                    
-                    <div className="flex justify-end gap-2 mt-3">
-                      <button
-                        onClick={() => setEditingProject(null)}
-                        className="py-1 px-2 text-xs border border-lightSlate text-lightSlate rounded hover:bg-lightBlue hover:bg-opacity-30"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        onClick={updateProject}
-                        disabled={loading}
-                        className="py-1 px-2 text-xs bg-green text-darkBlue rounded hover:bg-opacity-90"
-                      >
-                        {loading ? 'Saving...' : 'Update'}
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex-grow">
-                    <h5 className="text-lg font-medium text-lightestSlate">{project.title}</h5>
-                    <p className="text-sm text-green mb-2">{project.category}</p>
-                    {project.url && (
-                      <p className="text-xs text-lightSlate mb-1 truncate">
-                        URL: {project.url.substring(0, 50)}{project.url.length > 50 ? '...' : ''}
-                      </p>
-                    )}
-                    <p className="text-xs text-lightSlate">
-                      {project.images && project.images.length > 0 ? 
-                        `${project.images.length} gallery images` : 
-                        'No gallery images'}
-                    </p>
-                  </div>
-                )}
-                
-                {/* Actions */}
-                <div className="flex flex-col justify-center gap-2">
-                  {editingProject && editingProject.id === project.id ? (
-                    null
-                  ) : (
-                    <>
-                      <button
-                        onClick={() => setEditingProject(project)}
-                        className="py-1 px-3 text-sm bg-green bg-opacity-20 text-green rounded hover:bg-opacity-30"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => deleteProject(project.id)}
-                        className="py-1 px-3 text-sm bg-red-500 bg-opacity-20 text-red-400 rounded hover:bg-opacity-30"
-                      >
-                        Delete
-                      </button>
-                    </>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-  
-  // Save a new certificate to Firestore
+  // Note: Projects view has been moved to the Projects.js component
   const saveNewCertificate = async () => {
     setLoading(true);
     
@@ -2414,54 +1709,6 @@ const Admin = () => {
           </div>
         )}
       </div>
-      
-      {/* CORS Configuration Help */}
-      <div>
-        <h4 className="text-lg font-medium text-green mb-4">CORS Configuration Help</h4>
-        
-        <p className="text-lightSlate mb-2">
-          If you're experiencing CORS issues with Firebase Storage, follow these steps:
-        </p>
-        
-        <ol className="list-decimal pl-5 space-y-1 mt-2 text-lightSlate">
-          <li>Go to <a href="https://console.firebase.google.com/project/stanleyluong-1377a/storage" target="_blank" rel="noopener noreferrer" className="text-green underline">Firebase Console → Storage</a></li>
-          <li>Click on the "Rules" tab</li>
-          <li>Update the rules to allow public read access:</li>
-          <code className="bg-darkBlue p-2 rounded mt-1 block overflow-x-auto text-xs whitespace-pre">
-{`rules_version = '2';
-service firebase.storage {
-  match /b/{bucket}/o {
-    match /{allPaths=**} {
-      allow read;
-      allow write: if request.auth != null;
-    }
-  }
-}`}
-          </code>
-          <li>Configure CORS (very important for uploads):</li>
-          <ol className="list-decimal pl-5 space-y-1 mt-2">
-            <li>Create a file named <code className="bg-darkBlue p-1 rounded">cors.json</code> with this content:</li>
-            <code className="bg-darkBlue p-2 rounded mt-1 block overflow-x-auto text-xs whitespace-pre">
-{`[
-  {
-    "origin": ["*"],
-    "method": ["GET", "HEAD", "PUT", "POST", "DELETE", "OPTIONS"],
-    "responseHeader": ["Content-Type", "Content-Length", "Content-Encoding", "Content-Disposition", "Authorization", "X-Requested-With"],
-    "maxAgeSeconds": 3600
-  }
-]`}
-            </code>
-            <li>If you have the Google Cloud SDK installed, run:</li>
-            <code className="bg-darkBlue p-2 rounded mt-1 block overflow-x-auto text-xs">
-              gcloud storage buckets update gs://stanleyluong-1377a.firebasestorage.app --cors-file=cors.json
-            </code>
-            <li>To verify the configuration:</li>
-            <code className="bg-darkBlue p-2 rounded mt-1 block overflow-x-auto text-xs">
-              gcloud storage buckets describe gs://stanleyluong-1377a.firebasestorage.app --format=json
-            </code>
-          </ol>
-        </ol>
-      </div>
     </div>
   );
   
@@ -2592,67 +1839,6 @@ service firebase.storage {
                     className="w-full p-2 bg-darkBlue border border-lightBlue rounded"
                   />
                 </div>
-              </div>
-              
-              {/* Profile image upload button */}
-              <div className="mb-6">
-                <label className="block text-lightSlate mb-1">Profile Image</label>
-                <div className="flex items-center">
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => handleImageUpload(e, 'profile')}
-                    className="hidden"
-                    id="profile-upload"
-                    disabled={uploadingImages}
-                  />
-                  <label
-                    htmlFor="profile-upload"
-                    className="cursor-pointer py-2 px-4 bg-green bg-opacity-20 text-green rounded hover:bg-opacity-30"
-                  >
-                    Upload Profile Image
-                  </label>
-                  
-                  {uploadingImages && (
-                    <div className="ml-4 flex items-center">
-                      <div className="w-40 h-2 bg-darkBlue rounded-full overflow-hidden">
-                        <div 
-                          className="h-full bg-green"
-                          style={{ width: `${uploadProgress}%` }}
-                        ></div>
-                      </div>
-                      <span className="ml-2 text-lightSlate text-sm">{uploadProgress}%</span>
-                    </div>
-                  )}
-                  
-                  {profile.image && (
-                    <div className="ml-4 flex items-center">
-                      <img 
-                        src={profile.image} 
-                        alt="Profile" 
-                        className="h-10 w-10 rounded-full object-cover"
-                      />
-                      <span className="ml-2 text-lightSlate text-sm">Profile image</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-              
-              <div className="flex justify-end gap-3 mt-6">
-                <button
-                  onClick={() => setEditingProfile(false)}
-                  className="py-2 px-4 border border-lightSlate text-lightSlate rounded hover:bg-lightBlue hover:bg-opacity-30"
-                >
-                  Cancel
-                </button>
-                
-                <button
-                  onClick={updateProfile}
-                  disabled={loading}
-                  className="py-2 px-4 bg-green text-darkBlue rounded hover:bg-opacity-90"
-                >
-                  {loading ? 'Saving...' : 'Save Profile'}
-                </button>
               </div>
             </div>
           )}
@@ -3198,62 +2384,113 @@ service firebase.storage {
     </div>
   );
 
-  // Render the active view content
-  const renderContent = () => {
-    switch (activeView) {
-      case 'profile':
-        return renderProfile();
-      case 'projects':
-        return renderProjects();
-      case 'certificates':
-        return renderCertificates();
-      case 'skills':
-        return renderSkills();
-      case 'work':
-        return renderWork();
-      case 'education':
-        return renderEducation();
-      case 'settings':
-        return renderSettings();
-      default:
-        return renderDashboard();
-    }
-  };
+  // Use Routes instead of a renderContent function
   
-  // If logged in, show admin dashboard
-  return (
-    <section className="min-h-screen bg-darkBlue py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-7xl mx-auto">
-        <div className="flex flex-col md:flex-row gap-6">
-          {/* Messages shown at the top on mobile */}
+  // If not logged in, show login form
+  if (!user) {
+    return (
+      <section className="min-h-screen bg-darkBlue flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-md w-full space-y-8 bg-lightBlue bg-opacity-20 p-8 rounded-lg">
+          <div>
+            <h2 className="mt-6 text-center text-3xl font-bold text-lightestSlate">Admin Login</h2>
+            <p className="mt-2 text-center text-sm text-lightSlate">
+              Enter your credentials to access admin features
+            </p>
+          </div>
+          
           {message && (
-            <div className={`md:hidden w-full p-4 mb-2 rounded-lg ${
-              messageType === 'success' ? 'bg-green bg-opacity-20 text-green-300' : 
-              messageType === 'info' ? 'bg-blue-900 bg-opacity-30 text-blue-300' :
-              'bg-red-900 bg-opacity-30 text-red-300'
+            <div className={`p-4 rounded ${
+              messageType === 'success' ? 'bg-green-100 text-green-700' : 
+              messageType === 'info' ? 'bg-blue-100 text-blue-700' :
+              'bg-red-100 text-red-700'
             }`}>
               {message}
             </div>
           )}
           
+          <form className="mt-8 space-y-6" onSubmit={handleLogin}>
+            <div className="rounded-md shadow-sm -space-y-px">
+              <div>
+                <label htmlFor="email-address" className="sr-only">Email address</label>
+                <input
+                  id="email-address"
+                  name="email"
+                  type="email"
+                  autoComplete="email"
+                  required
+                  className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-green-500 focus:border-green-500 focus:z-10 sm:text-sm"
+                  placeholder="Email address"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
+              </div>
+              <div>
+                <label htmlFor="password" className="sr-only">Password</label>
+                <input
+                  id="password"
+                  name="password"
+                  type="password"
+                  autoComplete="current-password"
+                  required
+                  className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-green-500 focus:border-green-500 focus:z-10 sm:text-sm"
+                  placeholder="Password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div>
+              <button
+                type="submit"
+                disabled={loading}
+                className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-darkBlue bg-green hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+              >
+                {loading ? 'Loading...' : 'Sign in'}
+              </button>
+            </div>
+          </form>
+        </div>
+      </section>
+    );
+  }
+  
+  // If logged in, show admin dashboard with routes
+  return (
+    <section className="min-h-screen bg-darkBlue py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-7xl mx-auto">
+        <div className="flex flex-col md:flex-row gap-6">
           {/* Sidebar */}
           {renderSidebar()}
           
           {/* Main Content */}
           <div className="flex-grow">
-            {/* Messages shown on the right on desktop */}
-            {message && (
-              <div className={`hidden md:block p-4 mb-6 rounded-lg ${
-                messageType === 'success' ? 'bg-green bg-opacity-20 text-green-300' : 
-                messageType === 'info' ? 'bg-blue-900 bg-opacity-30 text-blue-300' :
-                'bg-red-900 bg-opacity-30 text-red-300'
-              }`}>
-                {message}
-              </div>
-            )}
+            {/* Messages */}
+            <MessageDisplay message={message} messageType={messageType} />
             
-            {/* Active View Content */}
-            {renderContent()}
+            {/* Routes for Different Admin Sections */}
+            <Routes>
+              <Route path="/" element={
+                <Dashboard 
+                  db={db} 
+                  projects={projects} 
+                  certificates={certificates} 
+                  skills={skills} 
+                  workExperience={workExperience} 
+                  education={education} 
+                  loadAllData={loadAllData} 
+                />
+              } />
+              <Route path="/projects" element={<Projects db={db} auth={auth} />} />
+              {/* Temporarily restore all original render functions */}
+              <Route path="/profile" element={renderProfile()} />
+              <Route path="/certificates" element={renderCertificates()} />
+              <Route path="/skills" element={renderSkills()} />
+              <Route path="/work" element={renderWork()} />
+              <Route path="/education" element={renderEducation()} />
+              <Route path="/settings" element={renderSettings()} />
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
           </div>
         </div>
       </div>

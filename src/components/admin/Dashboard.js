@@ -1,9 +1,11 @@
 import React from 'react';
 import { collection, addDoc, deleteDoc, doc, getDocs } from 'firebase/firestore';
+import { useNavigate } from 'react-router-dom';
 import useMessage from '../../hooks/useMessage';
 import MessageDisplay from './MessageDisplay';
 
-const Dashboard = ({ db, projects, certificates, skills, workExperience, education, loadAllData, setActiveView }) => {
+const Dashboard = ({ db, projects, certificates, skills, workExperience, education, loadAllData }) => {
+  const navigate = useNavigate();
   const { message, messageType, showMessage } = useMessage();
 
   // Function to test database connection and verify configuration
@@ -145,7 +147,7 @@ const Dashboard = ({ db, projects, certificates, skills, workExperience, educati
           <h4 className="text-lg font-medium text-green mb-2">Projects</h4>
           <p className="text-lightSlate">{projects.length} projects in database</p>
           <button
-            onClick={() => setActiveView('projects')}
+            onClick={() => navigate('/admin/projects')}
             className="mt-4 py-1 px-3 text-sm bg-green bg-opacity-20 text-green rounded hover:bg-opacity-30"
           >
             Manage Projects
@@ -156,7 +158,7 @@ const Dashboard = ({ db, projects, certificates, skills, workExperience, educati
           <h4 className="text-lg font-medium text-green mb-2">Certificates</h4>
           <p className="text-lightSlate">{certificates.length} certificates in database</p>
           <button
-            onClick={() => setActiveView('certificates')}
+            onClick={() => navigate('/admin/certificates')}
             className="mt-4 py-1 px-3 text-sm bg-green bg-opacity-20 text-green rounded hover:bg-opacity-30"
           >
             Manage Certificates
@@ -167,7 +169,7 @@ const Dashboard = ({ db, projects, certificates, skills, workExperience, educati
           <h4 className="text-lg font-medium text-green mb-2">Skills</h4>
           <p className="text-lightSlate">{skills.length} skills in database</p>
           <button
-            onClick={() => setActiveView('skills')}
+            onClick={() => navigate('/admin/skills')}
             className="mt-4 py-1 px-3 text-sm bg-green bg-opacity-20 text-green rounded hover:bg-opacity-30"
           >
             Manage Skills
@@ -178,7 +180,7 @@ const Dashboard = ({ db, projects, certificates, skills, workExperience, educati
           <h4 className="text-lg font-medium text-green mb-2">Work Experience</h4>
           <p className="text-lightSlate">{workExperience.length} work entries in database</p>
           <button
-            onClick={() => setActiveView('work')}
+            onClick={() => navigate('/admin/work')}
             className="mt-4 py-1 px-3 text-sm bg-green bg-opacity-20 text-green rounded hover:bg-opacity-30"
           >
             Manage Work Experience
@@ -189,7 +191,7 @@ const Dashboard = ({ db, projects, certificates, skills, workExperience, educati
           <h4 className="text-lg font-medium text-green mb-2">Education</h4>
           <p className="text-lightSlate">{education.length} education entries in database</p>
           <button
-            onClick={() => setActiveView('education')}
+            onClick={() => navigate('/admin/education')}
             className="mt-4 py-1 px-3 text-sm bg-green bg-opacity-20 text-green rounded hover:bg-opacity-30"
           >
             Manage Education

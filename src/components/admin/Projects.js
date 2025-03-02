@@ -22,8 +22,10 @@ const Projects = ({ db, auth }) => {
     category: '',
     url: '',
     displayOrder: '', // Add default displayOrder field
-    images: []
+    images: [],
+    tags: []
   });
+  const [newTag, setNewTag] = useState('');
   const [uploadingImages, setUploadingImages] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -188,7 +190,8 @@ const Projects = ({ db, auth }) => {
         title: '',
         category: '',
         url: '',
-        images: []
+        images: [],
+        tags: []
       });
       
       await loadProjects();
@@ -216,6 +219,11 @@ const Projects = ({ db, auth }) => {
         showMessage('Title and category are required', 'error');
         setLoading(false);
         return;
+      }
+      
+      // Ensure tags array is initialized
+      if (!editingProject.tags) {
+        editingProject.tags = [];
       }
       
       await updateProject(db, editingProject);
@@ -253,6 +261,42 @@ const Projects = ({ db, auth }) => {
       showMessage('Error deleting project: ' + error.message, 'error');
     } finally {
       setLoading(false);
+    }
+  };
+  
+  // Add a tag to a project
+  const handleAddTag = (isEditMode = false, e) => {
+    e.preventDefault();
+    if (!newTag.trim()) return;
+    
+    if (isEditMode && editingProject) {
+      // Add tag to editing project
+      const updatedTags = [...(editingProject.tags || [])];
+      if (!updatedTags.includes(newTag.trim())) {
+        updatedTags.push(newTag.trim());
+        setEditingProject({...editingProject, tags: updatedTags});
+      }
+    } else {
+      // Add tag to new project
+      const updatedTags = [...(newProject.tags || [])];
+      if (!updatedTags.includes(newTag.trim())) {
+        updatedTags.push(newTag.trim());
+        setNewProject({...newProject, tags: updatedTags});
+      }
+    }
+    setNewTag('');
+  };
+  
+  // Remove a tag from a project
+  const handleRemoveTag = (tag, isEditMode = false) => {
+    if (isEditMode && editingProject) {
+      // Remove tag from editing project
+      const updatedTags = editingProject.tags.filter(t => t !== tag);
+      setEditingProject({...editingProject, tags: updatedTags});
+    } else {
+      // Remove tag from new project
+      const updatedTags = newProject.tags.filter(t => t !== tag);
+      setNewProject({...newProject, tags: updatedTags});
     }
   };
   
@@ -382,6 +426,54 @@ const Projects = ({ db, auth }) => {
               className="w-full p-2 bg-darkBlue border border-lightBlue rounded"
             />
             <p className="text-xs text-lightSlate mt-1">Projects will be displayed in this order (lowest first)</p>
+          </div>
+        </div>
+        
+        {/* Tags Section */}
+        <div className="mb-4 p-3 bg-lightBlue bg-opacity-50 rounded-lg border border-green">
+          <label className="block text-green font-medium mb-2">Project Tags</label>
+          <p className="text-sm text-lightSlate mb-2">Add technology tags to highlight skills used (HTML, CSS, React, etc.)</p>
+          <div className="flex flex-wrap items-center">
+            <form onSubmit={(e) => handleAddTag(false, e)} className="flex w-full">
+              <input
+                type="text"
+                value={newTag}
+                onChange={(e) => setNewTag(e.target.value)}
+                placeholder="Add a tag (e.g., html, css)"
+                className="flex-grow p-2 bg-darkBlue border border-lightBlue rounded-l"
+              />
+              <button
+                type="submit"
+                className="py-2 px-3 bg-green text-darkBlue rounded-r hover:bg-opacity-90"
+              >
+                Add
+              </button>
+            </form>
+          </div>
+          
+          {/* Display Tags */}
+          <div className="mt-3">
+            <span className="text-sm text-lightSlate">Current tags:</span>
+            {newProject.tags && newProject.tags.length > 0 ? (
+              <div className="flex flex-wrap gap-2 mt-2">
+                {newProject.tags.map((tag, index) => (
+                  <div 
+                    key={index} 
+                    className="flex items-center bg-green bg-opacity-20 text-green px-2 py-1 rounded"
+                  >
+                    <span className="text-sm">{tag}</span>
+                    <button
+                      onClick={() => handleRemoveTag(tag, false)}
+                      className="ml-2 text-green hover:text-white"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-sm text-lightSlate mt-1 italic">No tags added yet</div>
+            )}
           </div>
         </div>
         
@@ -635,6 +727,52 @@ const Projects = ({ db, auth }) => {
                                 </div>
                               </div>
                               
+                              <div className="mt-3 px-2 py-2 bg-darkBlue bg-opacity-70 rounded border border-lightBlue">
+                                <label className="block text-green text-xs font-medium mb-1">Project Tags</label>
+                                <div className="flex flex-wrap items-center">
+                                  <form onSubmit={(e) => handleAddTag(true, e)} className="flex w-full">
+                                    <input
+                                      type="text"
+                                      value={newTag}
+                                      onChange={(e) => setNewTag(e.target.value)}
+                                      placeholder="Add a tag (e.g., html, css)"
+                                      className="flex-grow p-1 text-sm bg-darkBlue border border-lightBlue rounded-l"
+                                    />
+                                    <button
+                                      type="submit"
+                                      className="py-1 px-2 text-xs bg-green text-darkBlue rounded-r hover:bg-opacity-90"
+                                    >
+                                      Add
+                                    </button>
+                                  </form>
+                                </div>
+                                
+                                {/* Display Tags */}
+                                <div className="mt-2">
+                                  <span className="text-xs text-lightSlate">Current tags:</span>
+                                  {editingProject.tags && editingProject.tags.length > 0 ? (
+                                    <div className="flex flex-wrap gap-1 mt-1">
+                                      {editingProject.tags.map((tag, idx) => (
+                                        <div 
+                                          key={idx} 
+                                          className="flex items-center bg-green bg-opacity-20 text-green px-2 py-0.5 rounded text-xs"
+                                        >
+                                          <span>{tag}</span>
+                                          <button
+                                            onClick={() => handleRemoveTag(tag, true)}
+                                            className="ml-1 text-green hover:text-white"
+                                          >
+                                            ×
+                                          </button>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  ) : (
+                                    <div className="text-xs text-lightSlate mt-1 italic">No tags added yet</div>
+                                  )}
+                                </div>
+                              </div>
+                              
                               <div className="mt-3">
                                 <label className="block text-lightSlate text-xs mb-1">Gallery Images</label>
                                 <div className="flex items-center">
@@ -706,11 +844,25 @@ const Projects = ({ db, auth }) => {
                                   URL: {project.url.substring(0, 50)}{project.url.length > 50 ? '...' : ''}
                                 </p>
                               )}
-                              <p className="text-xs text-lightSlate">
+                              <p className="text-xs text-lightSlate mb-1">
                                 {project.images && project.images.length > 0 ? 
                                   `${project.images.length} gallery images` : 
                                   'No gallery images'}
                               </p>
+                              
+                              {/* Display tags */}
+                              {project.tags && project.tags.length > 0 && (
+                                <div className="mt-2">
+                                  <p className="text-xs text-lightSlate mb-1">Tags:</p>
+                                  <div className="flex flex-wrap gap-1">
+                                    {project.tags.map((tag, idx) => (
+                                      <span key={idx} className="text-xs bg-green bg-opacity-20 text-green px-2 py-0.5 rounded">
+                                        {tag}
+                                      </span>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
                             </div>
                           )}
                           
@@ -721,7 +873,14 @@ const Projects = ({ db, auth }) => {
                             ) : (
                               <>
                                 <button
-                                  onClick={() => setEditingProject(project)}
+                                  onClick={() => {
+                                    // Initialize tags array if it doesn't exist
+                                    const projectToEdit = { ...project };
+                                    if (!projectToEdit.tags) {
+                                      projectToEdit.tags = [];
+                                    }
+                                    setEditingProject(projectToEdit);
+                                  }}
                                   className="py-1 px-3 text-sm bg-green bg-opacity-20 text-green rounded hover:bg-opacity-30"
                                 >
                                   Edit

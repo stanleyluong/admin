@@ -14,6 +14,7 @@ export interface Project {
   images?: string[];        // Array of image paths/URLs for gallery
   description?: string;     // Project description
   technologies?: string[];  // Technologies used
+  tags?: string[];          // Project tags (e.g., "html", "css", etc.)
   featured?: boolean;       // Whether the project is featured
   order?: number;           // Display order
   createdAt?: FirebaseTimestamp;
