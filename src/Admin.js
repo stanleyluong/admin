@@ -1341,25 +1341,17 @@ const Admin = () => {
     <div className="bg-lightBlue bg-opacity-30 p-6 rounded-lg">
       <h3 className="text-2xl font-semibold text-lightestSlate mb-6">Manage Projects</h3>
       
-      {/* Create/Edit Project Form */}
+      {/* Create New Project Form */}
       <div className="mb-8 bg-lightBlue bg-opacity-50 p-4 rounded-lg">
-        <h4 className="text-lg font-medium text-green mb-4">
-          {editingProject ? 'Edit Project' : 'Create New Project'}
-        </h4>
+        <h4 className="text-lg font-medium text-green mb-4">Create New Project</h4>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
           <div>
             <label className="block text-lightSlate mb-1">Title</label>
             <input
               type="text"
-              value={editingProject ? editingProject.title : newProject.title}
-              onChange={(e) => {
-                if (editingProject) {
-                  setEditingProject({...editingProject, title: e.target.value});
-                } else {
-                  setNewProject({...newProject, title: e.target.value});
-                }
-              }}
+              value={newProject.title}
+              onChange={(e) => setNewProject({...newProject, title: e.target.value})}
               className="w-full p-2 bg-darkBlue border border-lightBlue rounded"
             />
           </div>
@@ -1368,14 +1360,8 @@ const Admin = () => {
             <label className="block text-lightSlate mb-1">Category</label>
             <input
               type="text"
-              value={editingProject ? editingProject.category : newProject.category}
-              onChange={(e) => {
-                if (editingProject) {
-                  setEditingProject({...editingProject, category: e.target.value});
-                } else {
-                  setNewProject({...newProject, category: e.target.value});
-                }
-              }}
+              value={newProject.category}
+              onChange={(e) => setNewProject({...newProject, category: e.target.value})}
               className="w-full p-2 bg-darkBlue border border-lightBlue rounded"
             />
           </div>
@@ -1384,16 +1370,25 @@ const Admin = () => {
             <label className="block text-lightSlate mb-1">URL (Website or leave empty)</label>
             <input
               type="text"
-              value={editingProject ? editingProject.url : newProject.url}
-              onChange={(e) => {
-                if (editingProject) {
-                  setEditingProject({...editingProject, url: e.target.value});
-                } else {
-                  setNewProject({...newProject, url: e.target.value});
-                }
-              }}
+              value={newProject.url}
+              onChange={(e) => setNewProject({...newProject, url: e.target.value})}
               className="w-full p-2 bg-darkBlue border border-lightBlue rounded"
             />
+          </div>
+          
+          <div>
+            <label className="block text-lightSlate mb-1">Display Order (Optional)</label>
+            <input
+              type="number"
+              value={newProject.displayOrder || ''}
+              onChange={(e) => {
+                const value = e.target.value ? parseInt(e.target.value) : '';
+                setNewProject({...newProject, displayOrder: value});
+              }}
+              placeholder="Leave empty for auto-assign"
+              className="w-full p-2 bg-darkBlue border border-lightBlue rounded"
+            />
+            <p className="text-xs text-lightSlate mt-1">Projects will be displayed in this order (lowest first)</p>
           </div>
         </div>
         
@@ -1406,20 +1401,20 @@ const Admin = () => {
               accept="image/*"
               onChange={(e) => handleProjectImageUpload(e, true)}
               className="hidden"
-              id="thumbnail-upload"
+              id="thumbnail-upload-new"
               disabled={uploadingImages}
             />
             <label
-              htmlFor="thumbnail-upload"
+              htmlFor="thumbnail-upload-new"
               className="cursor-pointer py-2 px-4 bg-green bg-opacity-20 text-green rounded hover:bg-opacity-30"
             >
               Upload Thumbnail
             </label>
             
-            {(editingProject?.thumbnail || newProject.thumbnail) && (
+            {newProject.thumbnail && (
               <div className="ml-4 flex items-center">
                 <img 
-                  src={editingProject?.thumbnail || newProject.thumbnail} 
+                  src={newProject.thumbnail} 
                   alt="Thumbnail" 
                   className="h-10 w-10 object-cover rounded"
                 />
@@ -1439,11 +1434,11 @@ const Admin = () => {
               multiple
               onChange={(e) => handleProjectImageUpload(e, false)}
               className="hidden"
-              id="gallery-upload"
+              id="gallery-upload-new"
               disabled={uploadingImages}
             />
             <label
-              htmlFor="gallery-upload"
+              htmlFor="gallery-upload-new"
               className="cursor-pointer py-2 px-4 bg-green bg-opacity-20 text-green rounded hover:bg-opacity-30"
             >
               Upload Gallery Images
@@ -1463,12 +1458,11 @@ const Admin = () => {
           </div>
           
           {/* Gallery Preview */}
-          {((editingProject?.images && editingProject.images.length > 0) || 
-             (newProject.images && newProject.images.length > 0)) && (
+          {newProject.images && newProject.images.length > 0 && (
             <div className="mt-4">
-              <h5 className="text-lightSlate text-sm mb-2">Gallery Images ({editingProject?.images?.length || newProject.images.length})</h5>
+              <h5 className="text-lightSlate text-sm mb-2">Gallery Images ({newProject.images.length})</h5>
               <div className="flex flex-wrap gap-2">
-                {(editingProject?.images || newProject.images).map((img, index) => (
+                {newProject.images.map((img, index) => (
                   <div key={index} className="relative">
                     <img 
                       src={img} 
@@ -1477,16 +1471,9 @@ const Admin = () => {
                     />
                     <button
                       onClick={() => {
-                        // Remove image from array
-                        if (editingProject) {
-                          const newImages = [...editingProject.images];
-                          newImages.splice(index, 1);
-                          setEditingProject({...editingProject, images: newImages});
-                        } else {
-                          const newImages = [...newProject.images];
-                          newImages.splice(index, 1);
-                          setNewProject({...newProject, images: newImages});
-                        }
+                        const newImages = [...newProject.images];
+                        newImages.splice(index, 1);
+                        setNewProject({...newProject, images: newImages});
                       }}
                       className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs"
                     >
@@ -1500,21 +1487,12 @@ const Admin = () => {
         </div>
         
         <div className="flex justify-end gap-3 mt-6">
-          {editingProject && (
-            <button
-              onClick={() => setEditingProject(null)}
-              className="py-2 px-4 border border-lightSlate text-lightSlate rounded hover:bg-lightBlue hover:bg-opacity-30"
-            >
-              Cancel
-            </button>
-          )}
-          
           <button
-            onClick={editingProject ? updateProject : saveNewProject}
+            onClick={saveNewProject}
             disabled={loading}
             className="py-2 px-4 bg-green text-darkBlue rounded hover:bg-opacity-90"
           >
-            {loading ? 'Saving...' : (editingProject ? 'Update Project' : 'Create Project')}
+            {loading ? 'Saving...' : 'Create Project'}
           </button>
         </div>
       </div>
@@ -1545,36 +1523,156 @@ const Admin = () => {
                   )}
                 </div>
                 
-                {/* Project Info */}
-                <div className="flex-grow">
-                  <h5 className="text-lg font-medium text-lightestSlate">{project.title}</h5>
-                  <p className="text-sm text-green mb-2">{project.category}</p>
-                  {project.url && (
-                    <p className="text-xs text-lightSlate mb-1 truncate">
-                      URL: {project.url.substring(0, 50)}{project.url.length > 50 ? '...' : ''}
+                {/* Project Info or Edit Form */}
+                {editingProject && editingProject.id === project.id ? (
+                  <div className="flex-grow bg-darkBlue bg-opacity-50 p-3 rounded">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-lightSlate text-xs mb-1">Title</label>
+                        <input
+                          type="text"
+                          value={editingProject.title}
+                          onChange={(e) => setEditingProject({...editingProject, title: e.target.value})}
+                          className="w-full p-1 text-sm bg-darkBlue border border-lightBlue rounded"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-lightSlate text-xs mb-1">Category</label>
+                        <input
+                          type="text"
+                          value={editingProject.category}
+                          onChange={(e) => setEditingProject({...editingProject, category: e.target.value})}
+                          className="w-full p-1 text-sm bg-darkBlue border border-lightBlue rounded"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-lightSlate text-xs mb-1">URL</label>
+                        <input
+                          type="text"
+                          value={editingProject.url || ''}
+                          onChange={(e) => setEditingProject({...editingProject, url: e.target.value})}
+                          className="w-full p-1 text-sm bg-darkBlue border border-lightBlue rounded"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-lightSlate text-xs mb-1">Thumbnail</label>
+                        <div className="flex items-center">
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => handleProjectImageUpload(e, true)}
+                            className="hidden"
+                            id={`thumbnail-upload-${project.id}`}
+                            disabled={uploadingImages}
+                          />
+                          <label
+                            htmlFor={`thumbnail-upload-${project.id}`}
+                            className="cursor-pointer py-1 px-2 text-xs bg-green bg-opacity-20 text-green rounded hover:bg-opacity-30"
+                          >
+                            Upload
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="mt-3">
+                      <label className="block text-lightSlate text-xs mb-1">Gallery Images</label>
+                      <div className="flex items-center">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          multiple
+                          onChange={(e) => handleProjectImageUpload(e, false)}
+                          className="hidden"
+                          id={`gallery-upload-${project.id}`}
+                          disabled={uploadingImages}
+                        />
+                        <label
+                          htmlFor={`gallery-upload-${project.id}`}
+                          className="cursor-pointer py-1 px-2 text-xs bg-green bg-opacity-20 text-green rounded hover:bg-opacity-30"
+                        >
+                          Upload Gallery
+                        </label>
+                      </div>
+                      
+                      {editingProject.images && editingProject.images.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-2 max-h-16 overflow-y-auto">
+                          {editingProject.images.map((img, idx) => (
+                            <div key={idx} className="relative w-8 h-8">
+                              <img 
+                                src={img} 
+                                alt={`Gallery ${idx}`} 
+                                className="w-full h-full object-cover rounded"
+                              />
+                              <button
+                                onClick={() => {
+                                  const newImages = [...editingProject.images];
+                                  newImages.splice(idx, 1);
+                                  setEditingProject({...editingProject, images: newImages});
+                                }}
+                                className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-3 h-3 flex items-center justify-center text-xs"
+                              >
+                                ×
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    
+                    <div className="flex justify-end gap-2 mt-3">
+                      <button
+                        onClick={() => setEditingProject(null)}
+                        className="py-1 px-2 text-xs border border-lightSlate text-lightSlate rounded hover:bg-lightBlue hover:bg-opacity-30"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={updateProject}
+                        disabled={loading}
+                        className="py-1 px-2 text-xs bg-green text-darkBlue rounded hover:bg-opacity-90"
+                      >
+                        {loading ? 'Saving...' : 'Update'}
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex-grow">
+                    <h5 className="text-lg font-medium text-lightestSlate">{project.title}</h5>
+                    <p className="text-sm text-green mb-2">{project.category}</p>
+                    {project.url && (
+                      <p className="text-xs text-lightSlate mb-1 truncate">
+                        URL: {project.url.substring(0, 50)}{project.url.length > 50 ? '...' : ''}
+                      </p>
+                    )}
+                    <p className="text-xs text-lightSlate">
+                      {project.images && project.images.length > 0 ? 
+                        `${project.images.length} gallery images` : 
+                        'No gallery images'}
                     </p>
-                  )}
-                  <p className="text-xs text-lightSlate">
-                    {project.images && project.images.length > 0 ? 
-                      `${project.images.length} gallery images` : 
-                      'No gallery images'}
-                  </p>
-                </div>
+                  </div>
+                )}
                 
                 {/* Actions */}
                 <div className="flex flex-col justify-center gap-2">
-                  <button
-                    onClick={() => setEditingProject(project)}
-                    className="py-1 px-3 text-sm bg-green bg-opacity-20 text-green rounded hover:bg-opacity-30"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => deleteProject(project.id)}
-                    className="py-1 px-3 text-sm bg-red-500 bg-opacity-20 text-red-400 rounded hover:bg-opacity-30"
-                  >
-                    Delete
-                  </button>
+                  {editingProject && editingProject.id === project.id ? (
+                    null
+                  ) : (
+                    <>
+                      <button
+                        onClick={() => setEditingProject(project)}
+                        className="py-1 px-3 text-sm bg-green bg-opacity-20 text-green rounded hover:bg-opacity-30"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => deleteProject(project.id)}
+                        className="py-1 px-3 text-sm bg-red-500 bg-opacity-20 text-red-400 rounded hover:bg-opacity-30"
+                      >
+                        Delete
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
             ))}
@@ -2049,25 +2147,17 @@ const Admin = () => {
     <div className="bg-lightBlue bg-opacity-30 p-6 rounded-lg">
       <h3 className="text-2xl font-semibold text-lightestSlate mb-6">Manage Certificates</h3>
       
-      {/* Create/Edit Certificate Form */}
+      {/* Create New Certificate Form */}
       <div className="mb-8 bg-lightBlue bg-opacity-50 p-4 rounded-lg">
-        <h4 className="text-lg font-medium text-green mb-4">
-          {editingCertificate ? 'Edit Certificate' : 'Add New Certificate'}
-        </h4>
+        <h4 className="text-lg font-medium text-green mb-4">Add New Certificate</h4>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
           <div>
             <label className="block text-lightSlate mb-1">School / Institution</label>
             <input
               type="text"
-              value={editingCertificate ? editingCertificate.school : newCertificate.school}
-              onChange={(e) => {
-                if (editingCertificate) {
-                  setEditingCertificate({...editingCertificate, school: e.target.value});
-                } else {
-                  setNewCertificate({...newCertificate, school: e.target.value});
-                }
-              }}
+              value={newCertificate.school}
+              onChange={(e) => setNewCertificate({...newCertificate, school: e.target.value})}
               className="w-full p-2 bg-darkBlue border border-lightBlue rounded"
             />
           </div>
@@ -2076,14 +2166,8 @@ const Admin = () => {
             <label className="block text-lightSlate mb-1">Course / Certificate Name</label>
             <input
               type="text"
-              value={editingCertificate ? editingCertificate.course : newCertificate.course}
-              onChange={(e) => {
-                if (editingCertificate) {
-                  setEditingCertificate({...editingCertificate, course: e.target.value});
-                } else {
-                  setNewCertificate({...newCertificate, course: e.target.value});
-                }
-              }}
+              value={newCertificate.course}
+              onChange={(e) => setNewCertificate({...newCertificate, course: e.target.value})}
               className="w-full p-2 bg-darkBlue border border-lightBlue rounded"
             />
           </div>
@@ -2092,14 +2176,8 @@ const Admin = () => {
             <label className="block text-lightSlate mb-1">Date (Optional)</label>
             <input
               type="text"
-              value={editingCertificate ? editingCertificate.date || '' : newCertificate.date || ''}
-              onChange={(e) => {
-                if (editingCertificate) {
-                  setEditingCertificate({...editingCertificate, date: e.target.value});
-                } else {
-                  setNewCertificate({...newCertificate, date: e.target.value});
-                }
-              }}
+              value={newCertificate.date || ''}
+              onChange={(e) => setNewCertificate({...newCertificate, date: e.target.value})}
               placeholder="e.g., 2023 or May 2023"
               className="w-full p-2 bg-darkBlue border border-lightBlue rounded"
             />
@@ -2115,11 +2193,11 @@ const Admin = () => {
               accept="image/*"
               onChange={(e) => handleImageUpload(e, 'certificate')}
               className="hidden"
-              id="certificate-upload"
+              id="certificate-upload-new"
               disabled={uploadingImages}
             />
             <label
-              htmlFor="certificate-upload"
+              htmlFor="certificate-upload-new"
               className="cursor-pointer py-2 px-4 bg-green bg-opacity-20 text-green rounded hover:bg-opacity-30"
             >
               Upload Certificate Image
@@ -2137,10 +2215,10 @@ const Admin = () => {
               </div>
             )}
             
-            {(editingCertificate?.image || newCertificate.image) && (
+            {newCertificate.image && (
               <div className="ml-4 flex items-center">
                 <img 
-                  src={editingCertificate?.image || newCertificate.image} 
+                  src={newCertificate.image} 
                   alt="Certificate" 
                   className="h-10 w-16 object-cover rounded"
                 />
@@ -2151,21 +2229,12 @@ const Admin = () => {
         </div>
         
         <div className="flex justify-end gap-3 mt-6">
-          {editingCertificate && (
-            <button
-              onClick={() => setEditingCertificate(null)}
-              className="py-2 px-4 border border-lightSlate text-lightSlate rounded hover:bg-lightBlue hover:bg-opacity-30"
-            >
-              Cancel
-            </button>
-          )}
-          
           <button
-            onClick={editingCertificate ? updateCertificate : saveNewCertificate}
+            onClick={saveNewCertificate}
             disabled={loading}
             className="py-2 px-4 bg-green text-darkBlue rounded hover:bg-opacity-90"
           >
-            {loading ? 'Saving...' : (editingCertificate ? 'Update Certificate' : 'Add Certificate')}
+            {loading ? 'Saving...' : 'Add Certificate'}
           </button>
         </div>
       </div>
@@ -2194,29 +2263,105 @@ const Admin = () => {
                   )}
                 </div>
                 
-                {/* Certificate Info */}
-                <div className="flex-grow">
-                  <h5 className="text-lg font-medium text-lightestSlate">{certificate.course}</h5>
-                  <p className="text-sm text-green mb-1">{certificate.school}</p>
-                  {certificate.date && (
-                    <p className="text-xs text-lightSlate">{certificate.date}</p>
-                  )}
-                </div>
+                {/* Certificate Info or Edit Form */}
+                {editingCertificate && editingCertificate.id === certificate.id ? (
+                  <div className="flex-grow bg-darkBlue bg-opacity-50 p-3 rounded">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-lightSlate text-xs mb-1">School / Institution</label>
+                        <input
+                          type="text"
+                          value={editingCertificate.school}
+                          onChange={(e) => setEditingCertificate({...editingCertificate, school: e.target.value})}
+                          className="w-full p-1 text-sm bg-darkBlue border border-lightBlue rounded"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-lightSlate text-xs mb-1">Course / Certificate Name</label>
+                        <input
+                          type="text"
+                          value={editingCertificate.course}
+                          onChange={(e) => setEditingCertificate({...editingCertificate, course: e.target.value})}
+                          className="w-full p-1 text-sm bg-darkBlue border border-lightBlue rounded"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-lightSlate text-xs mb-1">Date (Optional)</label>
+                        <input
+                          type="text"
+                          value={editingCertificate.date || ''}
+                          onChange={(e) => setEditingCertificate({...editingCertificate, date: e.target.value})}
+                          placeholder="e.g., 2023 or May 2023"
+                          className="w-full p-1 text-sm bg-darkBlue border border-lightBlue rounded"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-lightSlate text-xs mb-1">Certificate Image</label>
+                        <div className="flex items-center">
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => handleImageUpload(e, 'certificate')}
+                            className="hidden"
+                            id={`certificate-upload-${certificate.id}`}
+                            disabled={uploadingImages}
+                          />
+                          <label
+                            htmlFor={`certificate-upload-${certificate.id}`}
+                            className="cursor-pointer py-1 px-2 text-xs bg-green bg-opacity-20 text-green rounded hover:bg-opacity-30"
+                          >
+                            Upload Image
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="flex justify-end gap-2 mt-3">
+                      <button
+                        onClick={() => setEditingCertificate(null)}
+                        className="py-1 px-2 text-xs border border-lightSlate text-lightSlate rounded hover:bg-lightBlue hover:bg-opacity-30"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={updateCertificate}
+                        disabled={loading}
+                        className="py-1 px-2 text-xs bg-green text-darkBlue rounded hover:bg-opacity-90"
+                      >
+                        {loading ? 'Saving...' : 'Update'}
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex-grow">
+                    <h5 className="text-lg font-medium text-lightestSlate">{certificate.course}</h5>
+                    <p className="text-sm text-green mb-1">{certificate.school}</p>
+                    {certificate.date && (
+                      <p className="text-xs text-lightSlate">{certificate.date}</p>
+                    )}
+                  </div>
+                )}
                 
                 {/* Actions */}
                 <div className="flex flex-col justify-center gap-2">
-                  <button
-                    onClick={() => setEditingCertificate(certificate)}
-                    className="py-1 px-3 text-sm bg-green bg-opacity-20 text-green rounded hover:bg-opacity-30"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => deleteCertificate(certificate.id)}
-                    className="py-1 px-3 text-sm bg-red-500 bg-opacity-20 text-red-400 rounded hover:bg-opacity-30"
-                  >
-                    Delete
-                  </button>
+                  {editingCertificate && editingCertificate.id === certificate.id ? (
+                    null
+                  ) : (
+                    <>
+                      <button
+                        onClick={() => setEditingCertificate(certificate)}
+                        className="py-1 px-3 text-sm bg-green bg-opacity-20 text-green rounded hover:bg-opacity-30"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => deleteCertificate(certificate.id)}
+                        className="py-1 px-3 text-sm bg-red-500 bg-opacity-20 text-red-400 rounded hover:bg-opacity-30"
+                      >
+                        Delete
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
             ))}
@@ -2521,25 +2666,17 @@ service firebase.storage {
     <div className="bg-lightBlue bg-opacity-30 p-6 rounded-lg">
       <h3 className="text-2xl font-semibold text-lightestSlate mb-6">Manage Skills</h3>
       
-      {/* Create/Edit Skill Form */}
+      {/* Create New Skill Form */}
       <div className="mb-8 bg-lightBlue bg-opacity-50 p-4 rounded-lg">
-        <h4 className="text-lg font-medium text-green mb-4">
-          {editingSkill ? 'Edit Skill' : 'Add New Skill'}
-        </h4>
+        <h4 className="text-lg font-medium text-green mb-4">Add New Skill</h4>
         
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-4">
           <div className="flex flex-col">
             <label className="block text-lightSlate mb-2">Skill Name</label>
             <input
               type="text"
-              value={editingSkill ? editingSkill.name : newSkill.name}
-              onChange={(e) => {
-                if (editingSkill) {
-                  setEditingSkill({...editingSkill, name: e.target.value});
-                } else {
-                  setNewSkill({...newSkill, name: e.target.value});
-                }
-              }}
+              value={newSkill.name}
+              onChange={(e) => setNewSkill({...newSkill, name: e.target.value})}
               placeholder="e.g., JavaScript, React, Python"
               className="w-full p-2 bg-darkBlue border border-lightBlue rounded"
             />
@@ -2549,14 +2686,8 @@ service firebase.storage {
             <label className="block text-lightSlate mb-2">Level (e.g., 75%)</label>
             <input
               type="text"
-              value={editingSkill ? editingSkill.level : newSkill.level}
-              onChange={(e) => {
-                if (editingSkill) {
-                  setEditingSkill({...editingSkill, level: e.target.value});
-                } else {
-                  setNewSkill({...newSkill, level: e.target.value});
-                }
-              }}
+              value={newSkill.level}
+              onChange={(e) => setNewSkill({...newSkill, level: e.target.value})}
               placeholder="e.g., 75%, 80%, 90%"
               className="w-full p-2 bg-darkBlue border border-lightBlue rounded"
             />
@@ -2565,14 +2696,8 @@ service firebase.storage {
           <div className="flex flex-col">
             <label className="block text-lightSlate mb-2">Category</label>
             <select
-              value={editingSkill ? editingSkill.category : newSkill.category}
-              onChange={(e) => {
-                if (editingSkill) {
-                  setEditingSkill({...editingSkill, category: e.target.value});
-                } else {
-                  setNewSkill({...newSkill, category: e.target.value});
-                }
-              }}
+              value={newSkill.category}
+              onChange={(e) => setNewSkill({...newSkill, category: e.target.value})}
               className="w-full p-2 bg-darkBlue border border-lightBlue rounded"
             >
               <option value="Frontend">Frontend</option>
@@ -2584,21 +2709,12 @@ service firebase.storage {
         </div>
         
         <div className="flex justify-end gap-3 mt-6">
-          {editingSkill && (
-            <button
-              onClick={() => setEditingSkill(null)}
-              className="py-2 px-4 border border-lightSlate text-lightSlate rounded hover:bg-lightBlue hover:bg-opacity-30"
-            >
-              Cancel
-            </button>
-          )}
-          
           <button
-            onClick={editingSkill ? updateSkill : saveNewSkill}
+            onClick={saveNewSkill}
             disabled={loading}
             className="py-2 px-4 bg-green text-darkBlue rounded hover:bg-opacity-90"
           >
-            {loading ? 'Saving...' : (editingSkill ? 'Update Skill' : 'Add Skill')}
+            {loading ? 'Saving...' : 'Add Skill'}
           </button>
         </div>
       </div>
@@ -2627,33 +2743,89 @@ service firebase.storage {
                   <div className="space-y-3">
                     {categorySkills.map(skill => (
                       <div key={skill.id} className="bg-lightBlue bg-opacity-20 p-4 rounded-lg flex items-center justify-between">
-                        <div className="flex-grow">
-                          <div className="flex items-center justify-between mb-2">
-                            <span className="text-lightestSlate">{skill.name}</span>
-                            <span className="text-green text-sm">{skill.level}</span>
+                        {editingSkill && editingSkill.id === skill.id ? (
+                          <div className="flex-grow bg-darkBlue bg-opacity-50 p-3 rounded">
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                              <div className="flex flex-col">
+                                <label className="block text-lightSlate text-xs mb-1">Skill Name</label>
+                                <input
+                                  type="text"
+                                  value={editingSkill.name}
+                                  onChange={(e) => setEditingSkill({...editingSkill, name: e.target.value})}
+                                  className="w-full p-1 text-sm bg-darkBlue border border-lightBlue rounded"
+                                />
+                              </div>
+                              <div className="flex flex-col">
+                                <label className="block text-lightSlate text-xs mb-1">Level</label>
+                                <input
+                                  type="text"
+                                  value={editingSkill.level}
+                                  onChange={(e) => setEditingSkill({...editingSkill, level: e.target.value})}
+                                  className="w-full p-1 text-sm bg-darkBlue border border-lightBlue rounded"
+                                />
+                              </div>
+                              <div className="flex flex-col">
+                                <label className="block text-lightSlate text-xs mb-1">Category</label>
+                                <select
+                                  value={editingSkill.category}
+                                  onChange={(e) => setEditingSkill({...editingSkill, category: e.target.value})}
+                                  className="w-full p-1 text-sm bg-darkBlue border border-lightBlue rounded"
+                                >
+                                  <option value="Frontend">Frontend</option>
+                                  <option value="Backend">Backend</option>
+                                  <option value="Tools & DevOps">Tools & DevOps</option>
+                                  <option value="Other Skills">Other Skills</option>
+                                </select>
+                              </div>
+                            </div>
+                            
+                            <div className="flex justify-end gap-2 mt-3">
+                              <button
+                                onClick={() => setEditingSkill(null)}
+                                className="py-1 px-2 text-xs border border-lightSlate text-lightSlate rounded hover:bg-lightBlue hover:bg-opacity-30"
+                              >
+                                Cancel
+                              </button>
+                              <button
+                                onClick={updateSkill}
+                                disabled={loading}
+                                className="py-1 px-2 text-xs bg-green text-darkBlue rounded hover:bg-opacity-90"
+                              >
+                                {loading ? 'Saving...' : 'Update'}
+                              </button>
+                            </div>
                           </div>
-                          <div className="w-full bg-lightBlue h-2 rounded-full overflow-hidden">
-                            <div 
-                              className="bg-green h-full rounded-full"
-                              style={{ width: skill.level }}
-                            ></div>
-                          </div>
-                        </div>
-                        
-                        <div className="flex flex-col ml-6 gap-2">
-                          <button
-                            onClick={() => setEditingSkill(skill)}
-                            className="py-1 px-3 text-sm bg-green bg-opacity-20 text-green rounded hover:bg-opacity-30"
-                          >
-                            Edit
-                          </button>
-                          <button
-                            onClick={() => deleteSkill(skill.id)}
-                            className="py-1 px-3 text-sm bg-red-500 bg-opacity-20 text-red-400 rounded hover:bg-opacity-30"
-                          >
-                            Delete
-                          </button>
-                        </div>
+                        ) : (
+                          <>
+                            <div className="flex-grow">
+                              <div className="flex items-center justify-between mb-2">
+                                <span className="text-lightestSlate">{skill.name}</span>
+                                <span className="text-green text-sm">{skill.level}</span>
+                              </div>
+                              <div className="w-full bg-lightBlue h-2 rounded-full overflow-hidden">
+                                <div 
+                                  className="bg-green h-full rounded-full"
+                                  style={{ width: skill.level }}
+                                ></div>
+                              </div>
+                            </div>
+                            
+                            <div className="flex flex-col ml-6 gap-2">
+                              <button
+                                onClick={() => setEditingSkill(skill)}
+                                className="py-1 px-3 text-sm bg-green bg-opacity-20 text-green rounded hover:bg-opacity-30"
+                              >
+                                Edit
+                              </button>
+                              <button
+                                onClick={() => deleteSkill(skill.id)}
+                                className="py-1 px-3 text-sm bg-red-500 bg-opacity-20 text-red-400 rounded hover:bg-opacity-30"
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          </>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -2671,25 +2843,17 @@ service firebase.storage {
     <div className="bg-lightBlue bg-opacity-30 p-6 rounded-lg">
       <h3 className="text-2xl font-semibold text-lightestSlate mb-6">Manage Work Experience</h3>
       
-      {/* Create/Edit Work Form */}
+      {/* Create New Work Form */}
       <div className="mb-8 bg-lightBlue bg-opacity-50 p-4 rounded-lg">
-        <h4 className="text-lg font-medium text-green mb-4">
-          {editingWork ? 'Edit Work Experience' : 'Add New Work Experience'}
-        </h4>
+        <h4 className="text-lg font-medium text-green mb-4">Add New Work Experience</h4>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
           <div>
             <label className="block text-lightSlate mb-1">Company Name</label>
             <input
               type="text"
-              value={editingWork ? editingWork.company : newWork.company}
-              onChange={(e) => {
-                if (editingWork) {
-                  setEditingWork({...editingWork, company: e.target.value});
-                } else {
-                  setNewWork({...newWork, company: e.target.value});
-                }
-              }}
+              value={newWork.company}
+              onChange={(e) => setNewWork({...newWork, company: e.target.value})}
               className="w-full p-2 bg-darkBlue border border-lightBlue rounded"
             />
           </div>
@@ -2698,14 +2862,8 @@ service firebase.storage {
             <label className="block text-lightSlate mb-1">Job Title</label>
             <input
               type="text"
-              value={editingWork ? editingWork.title : newWork.title}
-              onChange={(e) => {
-                if (editingWork) {
-                  setEditingWork({...editingWork, title: e.target.value});
-                } else {
-                  setNewWork({...newWork, title: e.target.value});
-                }
-              }}
+              value={newWork.title}
+              onChange={(e) => setNewWork({...newWork, title: e.target.value})}
               className="w-full p-2 bg-darkBlue border border-lightBlue rounded"
             />
           </div>
@@ -2714,14 +2872,8 @@ service firebase.storage {
             <label className="block text-lightSlate mb-1">Years</label>
             <input
               type="text"
-              value={editingWork ? editingWork.years : newWork.years}
-              onChange={(e) => {
-                if (editingWork) {
-                  setEditingWork({...editingWork, years: e.target.value});
-                } else {
-                  setNewWork({...newWork, years: e.target.value});
-                }
-              }}
+              value={newWork.years}
+              onChange={(e) => setNewWork({...newWork, years: e.target.value})}
               placeholder="e.g., 2019 - Present"
               className="w-full p-2 bg-darkBlue border border-lightBlue rounded"
             />
@@ -2731,14 +2883,8 @@ service firebase.storage {
         <div className="mb-4">
           <label className="block text-lightSlate mb-1">Description (use bullet points with •)</label>
           <textarea
-            value={editingWork ? editingWork.description : newWork.description}
-            onChange={(e) => {
-              if (editingWork) {
-                setEditingWork({...editingWork, description: e.target.value});
-              } else {
-                setNewWork({...newWork, description: e.target.value});
-              }
-            }}
+            value={newWork.description}
+            onChange={(e) => setNewWork({...newWork, description: e.target.value})}
             rows={6}
             placeholder="• Developed responsive web applications using React&#10;• Implemented user authentication with Firebase&#10;• Optimized site performance by 40%"
             className="w-full p-2 bg-darkBlue border border-lightBlue rounded font-mono text-sm"
@@ -2747,21 +2893,12 @@ service firebase.storage {
         </div>
         
         <div className="flex justify-end gap-3 mt-6">
-          {editingWork && (
-            <button
-              onClick={() => setEditingWork(null)}
-              className="py-2 px-4 border border-lightSlate text-lightSlate rounded hover:bg-lightBlue hover:bg-opacity-30"
-            >
-              Cancel
-            </button>
-          )}
-          
           <button
-            onClick={editingWork ? updateWork : saveNewWork}
+            onClick={saveNewWork}
             disabled={loading}
             className="py-2 px-4 bg-green text-darkBlue rounded hover:bg-opacity-90"
           >
-            {loading ? 'Saving...' : (editingWork ? 'Update Work Experience' : 'Add Work Experience')}
+            {loading ? 'Saving...' : 'Add Work Experience'}
           </button>
         </div>
       </div>
@@ -2781,40 +2918,102 @@ service firebase.storage {
           <div className="space-y-6">
             {workExperience.map(work => (
               <div key={work.id} className="bg-lightBlue bg-opacity-20 p-4 rounded-lg">
-                <div className="flex flex-wrap justify-between items-start mb-4">
-                  <div className="mb-2 md:mb-0">
-                    <h5 className="text-lg font-medium text-lightestSlate">{work.title}</h5>
-                    <p className="text-green">{work.company}</p>
-                    <p className="text-lightSlate text-sm">{work.years}</p>
+                {editingWork && editingWork.id === work.id ? (
+                  <div className="bg-darkBlue bg-opacity-50 p-3 rounded">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+                      <div>
+                        <label className="block text-lightSlate text-xs mb-1">Company Name</label>
+                        <input
+                          type="text"
+                          value={editingWork.company}
+                          onChange={(e) => setEditingWork({...editingWork, company: e.target.value})}
+                          className="w-full p-1 text-sm bg-darkBlue border border-lightBlue rounded"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-lightSlate text-xs mb-1">Job Title</label>
+                        <input
+                          type="text"
+                          value={editingWork.title}
+                          onChange={(e) => setEditingWork({...editingWork, title: e.target.value})}
+                          className="w-full p-1 text-sm bg-darkBlue border border-lightBlue rounded"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-lightSlate text-xs mb-1">Years</label>
+                        <input
+                          type="text"
+                          value={editingWork.years}
+                          onChange={(e) => setEditingWork({...editingWork, years: e.target.value})}
+                          className="w-full p-1 text-sm bg-darkBlue border border-lightBlue rounded"
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className="mb-3">
+                      <label className="block text-lightSlate text-xs mb-1">Description</label>
+                      <textarea
+                        value={editingWork.description}
+                        onChange={(e) => setEditingWork({...editingWork, description: e.target.value})}
+                        rows={4}
+                        className="w-full p-1 text-sm bg-darkBlue border border-lightBlue rounded font-mono"
+                      />
+                    </div>
+                    
+                    <div className="flex justify-end gap-2">
+                      <button
+                        onClick={() => setEditingWork(null)}
+                        className="py-1 px-2 text-xs border border-lightSlate text-lightSlate rounded hover:bg-lightBlue hover:bg-opacity-30"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={updateWork}
+                        disabled={loading}
+                        className="py-1 px-2 text-xs bg-green text-darkBlue rounded hover:bg-opacity-90"
+                      >
+                        {loading ? 'Saving...' : 'Update'}
+                      </button>
+                    </div>
                   </div>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => setEditingWork(work)}
-                      className="py-1 px-3 text-sm bg-green bg-opacity-20 text-green rounded hover:bg-opacity-30"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => deleteWork(work.id)}
-                      className="py-1 px-3 text-sm bg-red-500 bg-opacity-20 text-red-400 rounded hover:bg-opacity-30"
-                    >
-                      Delete
-                    </button>
-                  </div>
-                </div>
-                
-                <div className="text-lightSlate">
-                  {work.description && typeof work.description === 'string' 
-                    ? work.description.split('\n').map((item, i) => (
-                        <p key={i} className="mb-1">{item}</p>
-                      ))
-                    : Array.isArray(work.description)
-                      ? work.description.map((item, i) => (
-                          <p key={i} className="mb-1">{item}</p>
-                        ))
-                      : <p className="mb-1">No description available</p>
-                  }
-                </div>
+                ) : (
+                  <>
+                    <div className="flex flex-wrap justify-between items-start mb-4">
+                      <div className="mb-2 md:mb-0">
+                        <h5 className="text-lg font-medium text-lightestSlate">{work.title}</h5>
+                        <p className="text-green">{work.company}</p>
+                        <p className="text-lightSlate text-sm">{work.years}</p>
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => setEditingWork(work)}
+                          className="py-1 px-3 text-sm bg-green bg-opacity-20 text-green rounded hover:bg-opacity-30"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => deleteWork(work.id)}
+                          className="py-1 px-3 text-sm bg-red-500 bg-opacity-20 text-red-400 rounded hover:bg-opacity-30"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                    
+                    <div className="text-lightSlate">
+                      {work.description && typeof work.description === 'string' 
+                        ? work.description.split('\n').map((item, i) => (
+                            <p key={i} className="mb-1">{item}</p>
+                          ))
+                        : Array.isArray(work.description)
+                          ? work.description.map((item, i) => (
+                              <p key={i} className="mb-1">{item}</p>
+                            ))
+                          : <p className="mb-1">No description available</p>
+                      }
+                    </div>
+                  </>
+                )}
               </div>
             ))}
           </div>
@@ -2828,25 +3027,17 @@ service firebase.storage {
     <div className="bg-lightBlue bg-opacity-30 p-6 rounded-lg">
       <h3 className="text-2xl font-semibold text-lightestSlate mb-6">Manage Education</h3>
       
-      {/* Create/Edit Education Form */}
+      {/* Create New Education Form */}
       <div className="mb-8 bg-lightBlue bg-opacity-50 p-4 rounded-lg">
-        <h4 className="text-lg font-medium text-green mb-4">
-          {editingEducation ? 'Edit Education' : 'Add New Education'}
-        </h4>
+        <h4 className="text-lg font-medium text-green mb-4">Add New Education</h4>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
           <div>
             <label className="block text-lightSlate mb-1">School / University</label>
             <input
               type="text"
-              value={editingEducation ? editingEducation.school : newEducation.school}
-              onChange={(e) => {
-                if (editingEducation) {
-                  setEditingEducation({...editingEducation, school: e.target.value});
-                } else {
-                  setNewEducation({...newEducation, school: e.target.value});
-                }
-              }}
+              value={newEducation.school}
+              onChange={(e) => setNewEducation({...newEducation, school: e.target.value})}
               className="w-full p-2 bg-darkBlue border border-lightBlue rounded"
             />
           </div>
@@ -2855,14 +3046,8 @@ service firebase.storage {
             <label className="block text-lightSlate mb-1">Degree / Certification</label>
             <input
               type="text"
-              value={editingEducation ? editingEducation.degree : newEducation.degree}
-              onChange={(e) => {
-                if (editingEducation) {
-                  setEditingEducation({...editingEducation, degree: e.target.value});
-                } else {
-                  setNewEducation({...newEducation, degree: e.target.value});
-                }
-              }}
+              value={newEducation.degree}
+              onChange={(e) => setNewEducation({...newEducation, degree: e.target.value})}
               className="w-full p-2 bg-darkBlue border border-lightBlue rounded"
             />
           </div>
@@ -2871,14 +3056,8 @@ service firebase.storage {
             <label className="block text-lightSlate mb-1">Graduation Year</label>
             <input
               type="text"
-              value={editingEducation ? editingEducation.graduated : newEducation.graduated}
-              onChange={(e) => {
-                if (editingEducation) {
-                  setEditingEducation({...editingEducation, graduated: e.target.value});
-                } else {
-                  setNewEducation({...newEducation, graduated: e.target.value});
-                }
-              }}
+              value={newEducation.graduated}
+              onChange={(e) => setNewEducation({...newEducation, graduated: e.target.value})}
               placeholder="e.g., 2018"
               className="w-full p-2 bg-darkBlue border border-lightBlue rounded"
             />
@@ -2888,14 +3067,8 @@ service firebase.storage {
         <div className="mb-4">
           <label className="block text-lightSlate mb-1">Description (Optional)</label>
           <textarea
-            value={editingEducation ? editingEducation.description : newEducation.description}
-            onChange={(e) => {
-              if (editingEducation) {
-                setEditingEducation({...editingEducation, description: e.target.value});
-              } else {
-                setNewEducation({...newEducation, description: e.target.value});
-              }
-            }}
+            value={newEducation.description}
+            onChange={(e) => setNewEducation({...newEducation, description: e.target.value})}
             rows={4}
             placeholder="Add any additional information about the education"
             className="w-full p-2 bg-darkBlue border border-lightBlue rounded"
@@ -2903,21 +3076,12 @@ service firebase.storage {
         </div>
         
         <div className="flex justify-end gap-3 mt-6">
-          {editingEducation && (
-            <button
-              onClick={() => setEditingEducation(null)}
-              className="py-2 px-4 border border-lightSlate text-lightSlate rounded hover:bg-lightBlue hover:bg-opacity-30"
-            >
-              Cancel
-            </button>
-          )}
-          
           <button
-            onClick={editingEducation ? updateEducation : saveNewEducation}
+            onClick={saveNewEducation}
             disabled={loading}
             className="py-2 px-4 bg-green text-darkBlue rounded hover:bg-opacity-90"
           >
-            {loading ? 'Saving...' : (editingEducation ? 'Update Education' : 'Add Education')}
+            {loading ? 'Saving...' : 'Add Education'}
           </button>
         </div>
       </div>
@@ -2937,32 +3101,94 @@ service firebase.storage {
           <div className="space-y-6">
             {education.map(edu => (
               <div key={edu.id} className="bg-lightBlue bg-opacity-20 p-4 rounded-lg">
-                <div className="flex flex-wrap justify-between items-start mb-4">
-                  <div className="mb-2 md:mb-0">
-                    <h5 className="text-lg font-medium text-lightestSlate">{edu.school}</h5>
-                    <p className="text-green">{edu.degree}</p>
-                    <p className="text-lightSlate text-sm">Graduated: {edu.graduated}</p>
+                {editingEducation && editingEducation.id === edu.id ? (
+                  <div className="bg-darkBlue bg-opacity-50 p-3 rounded">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+                      <div>
+                        <label className="block text-lightSlate text-xs mb-1">School / University</label>
+                        <input
+                          type="text"
+                          value={editingEducation.school}
+                          onChange={(e) => setEditingEducation({...editingEducation, school: e.target.value})}
+                          className="w-full p-1 text-sm bg-darkBlue border border-lightBlue rounded"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-lightSlate text-xs mb-1">Degree / Certification</label>
+                        <input
+                          type="text"
+                          value={editingEducation.degree}
+                          onChange={(e) => setEditingEducation({...editingEducation, degree: e.target.value})}
+                          className="w-full p-1 text-sm bg-darkBlue border border-lightBlue rounded"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-lightSlate text-xs mb-1">Graduation Year</label>
+                        <input
+                          type="text"
+                          value={editingEducation.graduated}
+                          onChange={(e) => setEditingEducation({...editingEducation, graduated: e.target.value})}
+                          className="w-full p-1 text-sm bg-darkBlue border border-lightBlue rounded"
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className="mb-3">
+                      <label className="block text-lightSlate text-xs mb-1">Description (Optional)</label>
+                      <textarea
+                        value={editingEducation.description}
+                        onChange={(e) => setEditingEducation({...editingEducation, description: e.target.value})}
+                        rows={3}
+                        className="w-full p-1 text-sm bg-darkBlue border border-lightBlue rounded"
+                      />
+                    </div>
+                    
+                    <div className="flex justify-end gap-2">
+                      <button
+                        onClick={() => setEditingEducation(null)}
+                        className="py-1 px-2 text-xs border border-lightSlate text-lightSlate rounded hover:bg-lightBlue hover:bg-opacity-30"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={updateEducation}
+                        disabled={loading}
+                        className="py-1 px-2 text-xs bg-green text-darkBlue rounded hover:bg-opacity-90"
+                      >
+                        {loading ? 'Saving...' : 'Update'}
+                      </button>
+                    </div>
                   </div>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => setEditingEducation(edu)}
-                      className="py-1 px-3 text-sm bg-green bg-opacity-20 text-green rounded hover:bg-opacity-30"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => deleteEducation(edu.id)}
-                      className="py-1 px-3 text-sm bg-red-500 bg-opacity-20 text-red-400 rounded hover:bg-opacity-30"
-                    >
-                      Delete
-                    </button>
-                  </div>
-                </div>
-                
-                {edu.description && (
-                  <div className="text-lightSlate">
-                    <p>{edu.description}</p>
-                  </div>
+                ) : (
+                  <>
+                    <div className="flex flex-wrap justify-between items-start mb-4">
+                      <div className="mb-2 md:mb-0">
+                        <h5 className="text-lg font-medium text-lightestSlate">{edu.school}</h5>
+                        <p className="text-green">{edu.degree}</p>
+                        <p className="text-lightSlate text-sm">Graduated: {edu.graduated}</p>
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => setEditingEducation(edu)}
+                          className="py-1 px-3 text-sm bg-green bg-opacity-20 text-green rounded hover:bg-opacity-30"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => deleteEducation(edu.id)}
+                          className="py-1 px-3 text-sm bg-red-500 bg-opacity-20 text-red-400 rounded hover:bg-opacity-30"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                    
+                    {edu.description && (
+                      <div className="text-lightSlate">
+                        <p>{edu.description}</p>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             ))}
