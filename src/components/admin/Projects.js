@@ -419,7 +419,7 @@ const Projects = ({ db, auth }) => {
               type="number"
               value={newProject.displayOrder || ''}
               onChange={(e) => {
-                const value = e.target.value ? parseInt(e.target.value) : '';
+                const value = e.target.value ? Number(e.target.value) : '';
                 setNewProject({...newProject, displayOrder: value});
               }}
               placeholder="Leave empty for auto-assign"
@@ -707,6 +707,18 @@ const Projects = ({ db, auth }) => {
                                   />
                                 </div>
                                 <div>
+                                  <label className="block text-lightSlate text-xs mb-1">Display Order</label>
+                                  <input
+                                    type="number"
+                                    value={editingProject.displayOrder || ''}
+                                    onChange={(e) => {
+                                      const value = e.target.value ? Number(e.target.value) : '';
+                                      setEditingProject({...editingProject, displayOrder: value});
+                                    }}
+                                    className="w-full p-1 text-sm bg-darkBlue border border-lightBlue rounded"
+                                  />
+                                </div>
+                                <div className="md:col-span-2">
                                   <label className="block text-lightSlate text-xs mb-1">Thumbnail</label>
                                   <div className="flex items-center">
                                     <input

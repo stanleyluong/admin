@@ -91,46 +91,45 @@ export const fetchProjects = async (db, showMessage, auth) => {
     // Now try with ordering by display order first, then createdAt
     if (!simpleSnapshot.empty) {
       try {
-        // First try to order by displayOrder if it exists
-        const projectsOrderQuery = query(
-          projectsCollection, 
-          orderBy('displayOrder', 'asc'),
-          orderBy('createdAt', 'desc')
+        // Get all projects without ordering first
+        const allProjectsSnapshot = await getDocs(projectsCollection);
+        projectsList = allProjectsSnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        
+        console.log('All projects (unordered):', projectsList.length);
+        
+        // Sort projects in JavaScript - first by displayOrder (if available), then by createdAt
+        projectsList.sort((a, b) => {
+          // If both have displayOrder, sort by it (asc)
+          if (a.displayOrder !== undefined && b.displayOrder !== undefined) {
+            return Number(a.displayOrder) - Number(b.displayOrder);
+          }
+          
+          // If only one has displayOrder, it comes first
+          if (a.displayOrder !== undefined) return -1;
+          if (b.displayOrder !== undefined) return 1;
+          
+          // Otherwise sort by createdAt (desc)
+          const aCreated = a.createdAt?.toDate?.() || new Date(a.createdAt || 0);
+          const bCreated = b.createdAt?.toDate?.() || new Date(b.createdAt || 0);
+          return bCreated - aCreated; // newest first when no displayOrder
+        });
+        
+        console.log('Projects sorted client-side:', projectsList.length);
+        console.log('Display orders after sorting:', projectsList.map(p => p.displayOrder || 'none'));
+        
+        // Check if any project is missing displayOrder or has invalid value
+        const needsOrderUpdate = projectsList.some(p => 
+          p.displayOrder === undefined || 
+          p.displayOrder === null || 
+          isNaN(p.displayOrder)
         );
         
-        try {
-          const orderedSnapshot = await getDocs(projectsOrderQuery);
-          projectsList = orderedSnapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data()
-          }));
-          console.log('Projects ordered by displayOrder:', projectsList.length);
-          
-          // Check if any project is missing displayOrder or has invalid value
-          const hasInvalidDisplayOrder = projectsList.some(p => 
-            p.displayOrder === undefined || 
-            p.displayOrder === null || 
-            isNaN(p.displayOrder)
-          );
-          
-          if (hasInvalidDisplayOrder) {
-            needsDisplayOrderUpdate = true;
-            console.warn('Some projects have invalid displayOrder fields');
-          }
-        } catch (orderError) {
-          // If displayOrder field doesn't exist or there's an error, fall back to createdAt
-          console.warn('Error ordering by displayOrder - using createdAt ordering instead:', orderError);
-          
-          const projectsDateQuery = query(projectsCollection, orderBy('createdAt', 'desc'));
-          const dateSnapshot = await getDocs(projectsDateQuery);
-          projectsList = dateSnapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data()
-          }));
-          console.log('Projects with createdAt ordering:', projectsList.length);
-          
-          // If we had to fall back to createdAt, we probably need to update display orders
+        if (needsOrderUpdate) {
           needsDisplayOrderUpdate = true;
+          console.warn('Some projects have missing or invalid displayOrder fields');
         }
       } catch (orderError) {
         console.warn('Error ordering projects - using unordered data instead:', orderError);
@@ -296,6 +295,12 @@ export const updateProject = async (db, project) => {
     ...project,
     updatedAt: new Date()
   };
+  
+  // Ensure displayOrder is a number if it exists
+  if (projectData.displayOrder !== undefined && projectData.displayOrder !== null) {
+    projectData.displayOrder = Number(projectData.displayOrder);
+    console.log(`Project update: converted displayOrder to number: ${projectData.displayOrder}, type: ${typeof projectData.displayOrder}`);
+  }
   
   // Update in Firestore
   await updateDoc(doc(db, 'projects', project.id), projectData);
