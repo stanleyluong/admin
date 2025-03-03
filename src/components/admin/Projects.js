@@ -211,6 +211,13 @@ const Projects = ({ db, auth }) => {
       return;
     }
     
+    // Save reference to the updated project's element for scroll position
+    const projectElement = document.getElementById(`project-${editingProject.id}`);
+    let scrollPosition = 0;
+    if (projectElement) {
+      scrollPosition = projectElement.offsetTop;
+    }
+    
     setLoading(true);
     
     try {
@@ -229,9 +236,20 @@ const Projects = ({ db, auth }) => {
       await updateProject(db, editingProject);
       
       // Reset editing state and reload projects
+      const updatedProjectId = editingProject.id;
       setEditingProject(null);
       await loadProjects();
       showMessage('Project updated successfully!', 'success');
+      
+      // Restore scroll position after a brief delay to let the DOM update
+      setTimeout(() => {
+        if (scrollPosition > 0) {
+          window.scrollTo({
+            top: scrollPosition - 100, // Scroll a bit above the element for context
+            behavior: 'smooth'
+          });
+        }
+      }, 100);
     } catch (error) {
       console.error('Error updating project:', error);
       showMessage('Error updating project: ' + error.message, 'error');
@@ -638,6 +656,7 @@ const Projects = ({ db, auth }) => {
                     <Draggable key={draggableId} draggableId={draggableId} index={index}>
                       {(provided, snapshot) => (
                         <div
+                          id={`project-${project.id}`}
                           ref={provided.innerRef}
                           {...provided.draggableProps}
                           className={`bg-lightBlue ${snapshot.isDragging ? 'bg-opacity-40' : 'bg-opacity-20'} p-4 rounded-lg flex flex-wrap md:flex-nowrap gap-4`}
