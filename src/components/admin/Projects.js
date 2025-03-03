@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import { storage } from '../../firebase/config';
 import { collection, getDocs } from 'firebase/firestore';
 import { 
@@ -7,8 +6,7 @@ import {
   uploadFileToStorage, 
   saveNewProject, 
   updateProject, 
-  deleteProject,
-  updateProjectDisplayOrder
+  deleteProject
 } from '../../utils/firebaseUtils';
 import MessageDisplay from './MessageDisplay';
 import useMessage from '../../hooks/useMessage';
@@ -318,77 +316,7 @@ const Projects = ({ db, auth }) => {
     }
   };
   
-  // Handle drag end for reordering projects
-  const handleDragEnd = async (result) => {
-    console.log('Drag end result:', result);
-    
-    // Dropped outside the list
-    if (!result.destination) {
-      console.log('Dropped outside list, ignoring');
-      return;
-    }
-    
-    const { source, destination } = result;
-    
-    // If dropped in the same position
-    if (source.index === destination.index) {
-      console.log('Dropped in same position, ignoring');
-      return;
-    }
-    
-    // Validate projects array has items
-    if (!projects || projects.length === 0) {
-      console.error('Cannot reorder - projects array is empty');
-      showMessage('Cannot reorder - no projects to reorder', 'error');
-      return;
-    }
-    
-    // Validate source and destination indexes
-    if (source.index < 0 || source.index >= projects.length ||
-        destination.index < 0 || destination.index >= projects.length) {
-      console.error('Invalid source or destination index', source.index, destination.index, 'projects length', projects.length);
-      showMessage('Invalid reordering operation', 'error');
-      return;
-    }
-    
-    console.log('Reordering project from index', source.index, 'to', destination.index);
-    
-    // Create a deep copy of the projects array to avoid reference issues
-    const newProjects = JSON.parse(JSON.stringify(projects));
-    
-    // Reorder the projects list
-    const [removed] = newProjects.splice(source.index, 1);
-    newProjects.splice(destination.index, 0, removed);
-    
-    // Update local state immediately for responsive UI
-    setProjects(newProjects);
-    
-    // Update display order for affected projects
-    try {
-      setLoading(true);
-      console.log('Updating display order for', newProjects.length, 'projects');
-      
-      // Update all projects with new display order
-      for (let i = 0; i < newProjects.length; i++) {
-        if (!newProjects[i] || !newProjects[i].id) {
-          console.error('Invalid project at index', i, newProjects[i]);
-          continue;
-        }
-        
-        console.log('Setting display order', i + 1, 'for project', newProjects[i].id);
-        await updateProjectDisplayOrder(db, newProjects[i].id, i + 1);
-      }
-      
-      showMessage('Project order updated successfully!', 'success');
-    } catch (error) {
-      console.error('Error updating project order:', error);
-      showMessage('Error updating project order: ' + error.message, 'error');
-      // Reload projects to reset order in case of error
-      await loadProjects();
-    } finally {
-      setLoading(false);
-    }
-  };
+  // This section has been removed - drag and drop functionality was removed
   
   return (
     <div className="bg-lightBlue bg-opacity-30 p-6 rounded-lg">
@@ -600,9 +528,9 @@ const Projects = ({ db, auth }) => {
         </div>
       </div>
       
-      {/* Projects List with Drag and Drop */}
+      {/* Projects List */}
       <div>
-        <h4 className="text-lg font-medium text-green mb-4">Projects List (Drag to Reorder)</h4>
+        <h4 className="text-lg font-medium text-green mb-4">Projects List</h4>
         
         {error && (
           <div className="bg-red-900 bg-opacity-20 p-4 mb-4 rounded-lg border border-red-500">
@@ -633,308 +561,275 @@ const Projects = ({ db, auth }) => {
             </button>
           </div>
         ) : (
-          <DragDropContext onDragEnd={handleDragEnd}>
-            <Droppable droppableId="projects-list">
-              {(provided) => (
-                <div 
-                  {...provided.droppableProps}
-                  ref={provided.innerRef}
-                  className="space-y-4"
+          <div className="space-y-4">
+            {projects.map((project, index) => {
+              // Ensure we have valid project data
+              if (!project || !project.id) {
+                console.warn('Invalid project data:', project);
+                return null;
+              }
+                    
+              return (
+                <div
+                  key={project.id}
+                  id={`project-${project.id}`}
+                  className="bg-lightBlue bg-opacity-20 p-4 rounded-lg flex flex-wrap md:flex-nowrap gap-4"
                 >
-                  {projects.map((project, index) => {
-                    // Ensure we have valid project data
-                    if (!project || !project.id) {
-                      console.warn('Invalid project data:', project);
-                      return null;
-                    }
-                    
-                    // Ensure project.id is a string for react-beautiful-dnd
-                    const draggableId = String(project.id);
-                    console.log(`Setting up draggable for project: ${project.title}, ID: ${draggableId}`);
-                    
-                    return (
-                    <Draggable key={draggableId} draggableId={draggableId} index={index}>
-                      {(provided, snapshot) => (
-                        <div
-                          id={`project-${project.id}`}
-                          ref={provided.innerRef}
-                          {...provided.draggableProps}
-                          className={`bg-lightBlue ${snapshot.isDragging ? 'bg-opacity-40' : 'bg-opacity-20'} p-4 rounded-lg flex flex-wrap md:flex-nowrap gap-4`}
-                        >
-                          {/* Drag Handle */}
-                          <div 
-                            {...provided.dragHandleProps}
-                            className="w-8 flex-shrink-0 flex items-center justify-center cursor-grab"
-                          >
-                            <div className="w-4 h-12 flex flex-col justify-between">
-                              <div className="w-full h-0.5 bg-green"></div>
-                              <div className="w-full h-0.5 bg-green"></div>
-                              <div className="w-full h-0.5 bg-green"></div>
-                              <div className="w-full h-0.5 bg-green"></div>
-                            </div>
+                  {/* Thumbnail */}
+                  <div className="w-32 h-32 bg-darkBlue rounded overflow-hidden flex-shrink-0 relative">
+                    {project.thumbnail || project.image ? (
+                      <div className="cursor-pointer" 
+                           onClick={() => window.open(project.thumbnail || project.image, '_blank')}>
+                        <img 
+                          src={project.thumbnail || project.image} 
+                          alt={project.title} 
+                          className="w-full h-full object-contain hover:scale-110 transition-transform" 
+                          title="Click to view full-size image"
+                        />
+                        <div className="absolute bottom-0 right-0 p-1 bg-black bg-opacity-50 text-white text-xs">
+                          🔍 Zoom
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-lightSlate text-xs">No image</div>
+                    )}
+                  </div>
+                  
+                  {/* Project Info or Edit Form */}
+                  {editingProject && editingProject.id === project.id ? (
+                    <div className="flex-grow bg-darkBlue bg-opacity-50 p-3 rounded">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-lightSlate text-xs mb-1">Title</label>
+                          <input
+                            type="text"
+                            value={editingProject.title}
+                            onChange={(e) => setEditingProject({...editingProject, title: e.target.value})}
+                            className="w-full p-1 text-sm bg-darkBlue border border-lightBlue rounded"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-lightSlate text-xs mb-1">Category</label>
+                          <input
+                            type="text"
+                            value={editingProject.category}
+                            onChange={(e) => setEditingProject({...editingProject, category: e.target.value})}
+                            className="w-full p-1 text-sm bg-darkBlue border border-lightBlue rounded"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-lightSlate text-xs mb-1">URL</label>
+                          <input
+                            type="text"
+                            value={editingProject.url || ''}
+                            onChange={(e) => setEditingProject({...editingProject, url: e.target.value})}
+                            className="w-full p-1 text-sm bg-darkBlue border border-lightBlue rounded"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-lightSlate text-xs mb-1">Display Order</label>
+                          <input
+                            type="number"
+                            value={editingProject.displayOrder || ''}
+                            onChange={(e) => {
+                              const value = e.target.value ? Number(e.target.value) : '';
+                              setEditingProject({...editingProject, displayOrder: value});
+                            }}
+                            className="w-full p-1 text-sm bg-darkBlue border border-lightBlue rounded"
+                          />
+                        </div>
+                        <div className="md:col-span-2">
+                          <label className="block text-lightSlate text-xs mb-1">Thumbnail</label>
+                          <div className="flex items-center">
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={(e) => handleProjectImageUpload(e, true)}
+                              className="hidden"
+                              id={`thumbnail-upload-${project.id}`}
+                              disabled={uploadingImages}
+                            />
+                            <label
+                              htmlFor={`thumbnail-upload-${project.id}`}
+                              className="cursor-pointer py-1 px-2 text-xs bg-green bg-opacity-20 text-green rounded hover:bg-opacity-30"
+                            >
+                              Upload
+                            </label>
                           </div>
-                          
-                          {/* Thumbnail */}
-                          <div className="w-32 h-32 bg-darkBlue rounded overflow-hidden flex-shrink-0 relative">
-                            {project.thumbnail || project.image ? (
-                              <div className="cursor-pointer" 
-                                   onClick={() => window.open(project.thumbnail || project.image, '_blank')}>
-                                <img 
-                                  src={project.thumbnail || project.image} 
-                                  alt={project.title} 
-                                  className="w-full h-full object-contain hover:scale-110 transition-transform" 
-                                  title="Click to view full-size image"
-                                />
-                                <div className="absolute bottom-0 right-0 p-1 bg-black bg-opacity-50 text-white text-xs">
-                                  🔍 Zoom
-                                </div>
-                              </div>
-                            ) : (
-                              <div className="w-full h-full flex items-center justify-center text-lightSlate text-xs">No image</div>
-                            )}
-                          </div>
-                          
-                          {/* Project Info or Edit Form */}
-                          {editingProject && editingProject.id === project.id ? (
-                            <div className="flex-grow bg-darkBlue bg-opacity-50 p-3 rounded">
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                <div>
-                                  <label className="block text-lightSlate text-xs mb-1">Title</label>
-                                  <input
-                                    type="text"
-                                    value={editingProject.title}
-                                    onChange={(e) => setEditingProject({...editingProject, title: e.target.value})}
-                                    className="w-full p-1 text-sm bg-darkBlue border border-lightBlue rounded"
-                                  />
-                                </div>
-                                <div>
-                                  <label className="block text-lightSlate text-xs mb-1">Category</label>
-                                  <input
-                                    type="text"
-                                    value={editingProject.category}
-                                    onChange={(e) => setEditingProject({...editingProject, category: e.target.value})}
-                                    className="w-full p-1 text-sm bg-darkBlue border border-lightBlue rounded"
-                                  />
-                                </div>
-                                <div>
-                                  <label className="block text-lightSlate text-xs mb-1">URL</label>
-                                  <input
-                                    type="text"
-                                    value={editingProject.url || ''}
-                                    onChange={(e) => setEditingProject({...editingProject, url: e.target.value})}
-                                    className="w-full p-1 text-sm bg-darkBlue border border-lightBlue rounded"
-                                  />
-                                </div>
-                                <div>
-                                  <label className="block text-lightSlate text-xs mb-1">Display Order</label>
-                                  <input
-                                    type="number"
-                                    value={editingProject.displayOrder || ''}
-                                    onChange={(e) => {
-                                      const value = e.target.value ? Number(e.target.value) : '';
-                                      setEditingProject({...editingProject, displayOrder: value});
-                                    }}
-                                    className="w-full p-1 text-sm bg-darkBlue border border-lightBlue rounded"
-                                  />
-                                </div>
-                                <div className="md:col-span-2">
-                                  <label className="block text-lightSlate text-xs mb-1">Thumbnail</label>
-                                  <div className="flex items-center">
-                                    <input
-                                      type="file"
-                                      accept="image/*"
-                                      onChange={(e) => handleProjectImageUpload(e, true)}
-                                      className="hidden"
-                                      id={`thumbnail-upload-${project.id}`}
-                                      disabled={uploadingImages}
-                                    />
-                                    <label
-                                      htmlFor={`thumbnail-upload-${project.id}`}
-                                      className="cursor-pointer py-1 px-2 text-xs bg-green bg-opacity-20 text-green rounded hover:bg-opacity-30"
-                                    >
-                                      Upload
-                                    </label>
-                                  </div>
-                                </div>
-                              </div>
-                              
-                              <div className="mt-3 px-2 py-2 bg-darkBlue bg-opacity-70 rounded border border-lightBlue">
-                                <label className="block text-green text-xs font-medium mb-1">Project Tags</label>
-                                <div className="flex flex-wrap items-center">
-                                  <form onSubmit={(e) => handleAddTag(true, e)} className="flex w-full">
-                                    <input
-                                      type="text"
-                                      value={newTag}
-                                      onChange={(e) => setNewTag(e.target.value)}
-                                      placeholder="Add a tag (e.g., html, css)"
-                                      className="flex-grow p-1 text-sm bg-darkBlue border border-lightBlue rounded-l"
-                                    />
-                                    <button
-                                      type="submit"
-                                      className="py-1 px-2 text-xs bg-green text-darkBlue rounded-r hover:bg-opacity-90"
-                                    >
-                                      Add
-                                    </button>
-                                  </form>
-                                </div>
-                                
-                                {/* Display Tags */}
-                                <div className="mt-2">
-                                  <span className="text-xs text-lightSlate">Current tags:</span>
-                                  {editingProject.tags && editingProject.tags.length > 0 ? (
-                                    <div className="flex flex-wrap gap-1 mt-1">
-                                      {editingProject.tags.map((tag, idx) => (
-                                        <div 
-                                          key={idx} 
-                                          className="flex items-center bg-green bg-opacity-20 text-green px-2 py-0.5 rounded text-xs"
-                                        >
-                                          <span>{tag}</span>
-                                          <button
-                                            onClick={() => handleRemoveTag(tag, true)}
-                                            className="ml-1 text-green hover:text-white"
-                                          >
-                                            ×
-                                          </button>
-                                        </div>
-                                      ))}
-                                    </div>
-                                  ) : (
-                                    <div className="text-xs text-lightSlate mt-1 italic">No tags added yet</div>
-                                  )}
-                                </div>
-                              </div>
-                              
-                              <div className="mt-3">
-                                <label className="block text-lightSlate text-xs mb-1">Gallery Images</label>
-                                <div className="flex items-center">
-                                  <input
-                                    type="file"
-                                    accept="image/*"
-                                    multiple
-                                    onChange={(e) => handleProjectImageUpload(e, false)}
-                                    className="hidden"
-                                    id={`gallery-upload-${project.id}`}
-                                    disabled={uploadingImages}
-                                  />
-                                  <label
-                                    htmlFor={`gallery-upload-${project.id}`}
-                                    className="cursor-pointer py-1 px-2 text-xs bg-green bg-opacity-20 text-green rounded hover:bg-opacity-30"
+                        </div>
+                      </div>
+                      
+                      <div className="mt-3 px-2 py-2 bg-darkBlue bg-opacity-70 rounded border border-lightBlue">
+                        <label className="block text-green text-xs font-medium mb-1">Project Tags</label>
+                        <div className="flex flex-wrap items-center">
+                          <form onSubmit={(e) => handleAddTag(true, e)} className="flex w-full">
+                            <input
+                              type="text"
+                              value={newTag}
+                              onChange={(e) => setNewTag(e.target.value)}
+                              placeholder="Add a tag (e.g., html, css)"
+                              className="flex-grow p-1 text-sm bg-darkBlue border border-lightBlue rounded-l"
+                            />
+                            <button
+                              type="submit"
+                              className="py-1 px-2 text-xs bg-green text-darkBlue rounded-r hover:bg-opacity-90"
+                            >
+                              Add
+                            </button>
+                          </form>
+                        </div>
+                        
+                        {/* Display Tags */}
+                        <div className="mt-2">
+                          <span className="text-xs text-lightSlate">Current tags:</span>
+                          {editingProject.tags && editingProject.tags.length > 0 ? (
+                            <div className="flex flex-wrap gap-1 mt-1">
+                              {editingProject.tags.map((tag, idx) => (
+                                <div 
+                                  key={idx} 
+                                  className="flex items-center bg-green bg-opacity-20 text-green px-2 py-0.5 rounded text-xs"
+                                >
+                                  <span>{tag}</span>
+                                  <button
+                                    onClick={() => handleRemoveTag(tag, true)}
+                                    className="ml-1 text-green hover:text-white"
                                   >
-                                    Upload Gallery
-                                  </label>
+                                    ×
+                                  </button>
                                 </div>
-                                
-                                {editingProject.images && editingProject.images.length > 0 && (
-                                  <div className="flex flex-wrap gap-1 mt-2 max-h-16 overflow-y-auto">
-                                    {editingProject.images.map((img, idx) => (
-                                      <div key={idx} className="relative w-8 h-8">
-                                        <img 
-                                          src={img} 
-                                          alt={`Gallery ${idx}`} 
-                                          className="w-full h-full object-cover rounded"
-                                        />
-                                        <button
-                                          onClick={() => {
-                                            const newImages = [...editingProject.images];
-                                            newImages.splice(idx, 1);
-                                            setEditingProject({...editingProject, images: newImages});
-                                          }}
-                                          className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-3 h-3 flex items-center justify-center text-xs"
-                                        >
-                                          ×
-                                        </button>
-                                      </div>
-                                    ))}
-                                  </div>
-                                )}
-                              </div>
-                              
-                              <div className="flex justify-end gap-2 mt-3">
-                                <button
-                                  onClick={() => setEditingProject(null)}
-                                  className="py-1 px-2 text-xs border border-lightSlate text-lightSlate rounded hover:bg-lightBlue hover:bg-opacity-30"
-                                >
-                                  Cancel
-                                </button>
-                                <button
-                                  onClick={handleUpdateProject}
-                                  disabled={loading}
-                                  className="py-1 px-2 text-xs bg-green text-darkBlue rounded hover:bg-opacity-90"
-                                >
-                                  {loading ? 'Saving...' : 'Update'}
-                                </button>
-                              </div>
+                              ))}
                             </div>
                           ) : (
-                            <div className="flex-grow">
-                              <h5 className="text-lg font-medium text-lightestSlate">{project.title}</h5>
-                              <p className="text-sm text-green mb-2">{project.category}</p>
-                              <p className="text-xs text-lightSlate mb-1">Display Order: {project.displayOrder || 'Not set'}</p>
-                              {project.url && (
-                                <p className="text-xs text-lightSlate mb-1 truncate">
-                                  URL: {project.url.substring(0, 50)}{project.url.length > 50 ? '...' : ''}
-                                </p>
-                              )}
-                              <p className="text-xs text-lightSlate mb-1">
-                                {project.images && project.images.length > 0 ? 
-                                  `${project.images.length} gallery images` : 
-                                  'No gallery images'}
-                              </p>
-                              
-                              {/* Display tags */}
-                              {project.tags && project.tags.length > 0 && (
-                                <div className="mt-2">
-                                  <p className="text-xs text-lightSlate mb-1">Tags:</p>
-                                  <div className="flex flex-wrap gap-1">
-                                    {project.tags.map((tag, idx) => (
-                                      <span key={idx} className="text-xs bg-green bg-opacity-20 text-green px-2 py-0.5 rounded">
-                                        {tag}
-                                      </span>
-                                    ))}
-                                  </div>
-                                </div>
-                              )}
-                            </div>
+                            <div className="text-xs text-lightSlate mt-1 italic">No tags added yet</div>
                           )}
-                          
-                          {/* Actions */}
-                          <div className="flex flex-col justify-center gap-2">
-                            {editingProject && editingProject.id === project.id ? (
-                              null
-                            ) : (
-                              <>
+                        </div>
+                      </div>
+                      
+                      <div className="mt-3">
+                        <label className="block text-lightSlate text-xs mb-1">Gallery Images</label>
+                        <div className="flex items-center">
+                          <input
+                            type="file"
+                            accept="image/*"
+                            multiple
+                            onChange={(e) => handleProjectImageUpload(e, false)}
+                            className="hidden"
+                            id={`gallery-upload-${project.id}`}
+                            disabled={uploadingImages}
+                          />
+                          <label
+                            htmlFor={`gallery-upload-${project.id}`}
+                            className="cursor-pointer py-1 px-2 text-xs bg-green bg-opacity-20 text-green rounded hover:bg-opacity-30"
+                          >
+                            Upload Gallery
+                          </label>
+                        </div>
+                        
+                        {editingProject.images && editingProject.images.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-2 max-h-16 overflow-y-auto">
+                            {editingProject.images.map((img, idx) => (
+                              <div key={idx} className="relative w-8 h-8">
+                                <img 
+                                  src={img} 
+                                  alt={`Gallery ${idx}`} 
+                                  className="w-full h-full object-cover rounded"
+                                />
                                 <button
                                   onClick={() => {
-                                    // Initialize tags array if it doesn't exist
-                                    const projectToEdit = { ...project };
-                                    if (!projectToEdit.tags) {
-                                      projectToEdit.tags = [];
-                                    }
-                                    setEditingProject(projectToEdit);
+                                    const newImages = [...editingProject.images];
+                                    newImages.splice(idx, 1);
+                                    setEditingProject({...editingProject, images: newImages});
                                   }}
-                                  className="py-1 px-3 text-sm bg-green bg-opacity-20 text-green rounded hover:bg-opacity-30"
+                                  className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-3 h-3 flex items-center justify-center text-xs"
                                 >
-                                  Edit
+                                  ×
                                 </button>
-                                <button
-                                  onClick={() => handleDeleteProject(project.id)}
-                                  className="py-1 px-3 text-sm bg-red-500 bg-opacity-20 text-red-400 rounded hover:bg-opacity-30"
-                                >
-                                  Delete
-                                </button>
-                              </>
-                            )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      
+                      <div className="flex justify-end gap-2 mt-3">
+                        <button
+                          onClick={() => setEditingProject(null)}
+                          className="py-1 px-2 text-xs border border-lightSlate text-lightSlate rounded hover:bg-lightBlue hover:bg-opacity-30"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          onClick={handleUpdateProject}
+                          disabled={loading}
+                          className="py-1 px-2 text-xs bg-green text-darkBlue rounded hover:bg-opacity-90"
+                        >
+                          {loading ? 'Saving...' : 'Update'}
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex-grow">
+                      <h5 className="text-lg font-medium text-lightestSlate">{project.title}</h5>
+                      <p className="text-sm text-green mb-2">{project.category}</p>
+                      <p className="text-xs text-lightSlate mb-1">Display Order: {project.displayOrder || 'Not set'}</p>
+                      {project.url && (
+                        <p className="text-xs text-lightSlate mb-1 truncate">
+                          URL: {project.url.substring(0, 50)}{project.url.length > 50 ? '...' : ''}
+                        </p>
+                      )}
+                      <p className="text-xs text-lightSlate mb-1">
+                        {project.images && project.images.length > 0 ? 
+                          `${project.images.length} gallery images` : 
+                          'No gallery images'}
+                      </p>
+                      
+                      {/* Display tags */}
+                      {project.tags && project.tags.length > 0 && (
+                        <div className="mt-2">
+                          <p className="text-xs text-lightSlate mb-1">Tags:</p>
+                          <div className="flex flex-wrap gap-1">
+                            {project.tags.map((tag, idx) => (
+                              <span key={idx} className="text-xs bg-green bg-opacity-20 text-green px-2 py-0.5 rounded">
+                                {tag}
+                              </span>
+                            ))}
                           </div>
                         </div>
                       )}
-                    </Draggable>
-                  );
-                  })}
-                  {provided.placeholder}
+                    </div>
+                  )}
+                  
+                  {/* Actions */}
+                  <div className="flex flex-col justify-center gap-2">
+                    {editingProject && editingProject.id === project.id ? (
+                      null
+                    ) : (
+                      <>
+                        <button
+                          onClick={() => {
+                            // Initialize tags array if it doesn't exist
+                            const projectToEdit = { ...project };
+                            if (!projectToEdit.tags) {
+                              projectToEdit.tags = [];
+                            }
+                            setEditingProject(projectToEdit);
+                          }}
+                          className="py-1 px-3 text-sm bg-green bg-opacity-20 text-green rounded hover:bg-opacity-30"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => handleDeleteProject(project.id)}
+                          className="py-1 px-3 text-sm bg-red-500 bg-opacity-20 text-red-400 rounded hover:bg-opacity-30"
+                        >
+                          Delete
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </div>
-              )}
-            </Droppable>
-          </DragDropContext>
+              );
+            })}
+          </div>
         )}
       </div>
     </div>
